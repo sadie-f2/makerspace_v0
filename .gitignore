@@ -1,0 +1,15 @@
+# App
+app/.env
+app/.env.local
+app/.env*.local
+app/node_modules/
+app/.next/
+app/src/generated/
+
+# Python tools
+app/tools/.venv/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store

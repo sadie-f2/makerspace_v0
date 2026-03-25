@@ -1,0 +1,285 @@
+Makerspace Management Software — Market Landscape Analysis
+Research date: March 2026
+
+===========================================================================
+EXECUTIVE SUMMARY
+===========================================================================
+
+The global makerspace ecosystem comprises an estimated 30,000–100,000 spaces
+of varying types and formality, but the commercially addressable market for
+management software is substantially smaller — approximately 5,000–10,000
+spaces with the scale, budget, and operational complexity to justify paid
+software. The currently paying market for any makerspace software is probably
+only 1,500–3,000 spaces globally. Purpose-built makerspace software (Fabman,
+Fab Manager, MemberMatters combined) is likely generating well under $5M ARR
+total. TAM if fully captured: $25–75M ARR.
+
+No dominant purpose-built player exists. The market is genuinely underserved.
+
+
+===========================================================================
+WHERE ARTISANS ASYLUM SITS
+===========================================================================
+
+Artisans Asylum (~500 members, 24/7 access, multiple shops, certification
+gating, studios, storage, staff) sits at approximately the 90th–95th
+percentile of makerspace complexity globally. Most makerspaces are 50–150
+members running on spreadsheets.
+
+Size distribution (estimated):
+
+  Micro    <50 members       ~50% of all spaces
+  Small    50–150 members    ~30%
+  Medium   150–500 members   ~15%
+  Large    500+ members      ~5%
+
+Notable large spaces for reference:
+  Dallas Makerspace     ~2,200 members  (one of the largest volunteer-run globally)
+  Happylab Vienna       ~1,700 members  (runs with a single lab manager)
+  Nova Labs (VA)        ~700 members
+  Artisans Asylum (MA)  ~500 members
+
+The ~5% of spaces with 500+ members and the ~15% with 150–500 members are
+most likely to pay for professional management software — roughly 1,400
+highly qualified leads within the formal/networked ~7,000 spaces, plus a
+long tail of smaller spaces willing to pay if pricing is right.
+
+
+===========================================================================
+GLOBAL MARKET SIZE AND REGIONAL BREAKDOWN
+===========================================================================
+
+By formal network (known counts):
+
+  Fab Labs (fablabs.io / Fab Foundation)    2,300–2,700 in 120+ countries
+  Hackerspaces (hackerspaces.org)           ~1,200–2,000 active
+  University makerspaces (US only)          ~500–1,000
+  Library makerspaces (US only)             ~300–500
+  Commercial makerspaces (US)               ~30 (declining sharply since 2018)
+  Community nonprofit makerspaces (US)      ~237
+
+Total formal/networked spaces globally: ~5,000–7,000
+With informal/non-networked tail: 30,000–100,000
+
+Regional breakdown:
+
+  North America     ~1,500–3,000 formal; 5,000–10,000 informal/school
+  Europe            ~1,500–2,500 formal (France, Germany, Italy, Netherlands, UK)
+  Asia-Pacific      ~1,000–2,000 formal; fastest growing
+  Rest of World     ~500–1,000 formal
+
+Note: Market research firm figures for "Makerspaces Services Market" size
+($2.5–10.2B) conflate equipment sales, physical space revenue, and software.
+They should not be used as software TAM figures.
+
+
+===========================================================================
+GROWTH TRENDS
+===========================================================================
+
+United States:
+  - Peak makerspace founding: 2011–2014
+  - TechShop bankruptcy (2018) was a watershed event
+  - Commercial segment has continued declining; fewer than 30 remain
+  - 237 nonprofit spaces remain active (84% survival rate)
+  - Only 8 new spaces of tracked types founded since 2020
+  - University and library makerspaces are the US growth story
+
+Global:
+  - Fab Lab network continues growing (historically doubling every ~2 years;
+    growth has moderated post-2020)
+  - Asia-Pacific is the bright spot: 16%+ CAGR projected through 2032,
+    driven by China, India, Japan
+  - European makerspaces broadly stable; some growth in Eastern Europe
+  - Post-COVID: university spaces recovered strongly by 2022–2023;
+    community spaces had more mixed outcomes
+
+Summary: US community/commercial makerspace market is flat-to-declining in
+absolute count but surviving spaces are larger and more professionalized.
+Global market is growing, led by Asia-Pacific and institutional spaces.
+
+
+===========================================================================
+EXISTING SOFTWARE LANDSCAPE
+===========================================================================
+
+Dedicated makerspace/fablab software:
+
+  Fabman (Austria)
+    Focus:    Makerspaces, fab labs; strong equipment/machine management
+    Pricing:  €49–199/month + per-machine fees
+    Reach:    "60+ labs globally" — very small
+    Notes:    Best existing option for equipment-centric workflows; proprietary
+
+  Fab Manager (France)
+    Focus:    Fablabs specifically; open-source + cloud option
+    Pricing:  €45+/month cloud; free self-hosted (AGPL)
+    Reach:    "100+ fablabs adopted"
+    Notes:    Effectively a company product (Sleede); almost no external
+              contributions; Ruby on Rails backend limits TS programmer adoption
+
+  MemberMatters (Australia)
+    Focus:    Open-source membership + access control
+    Pricing:  Free (self-hosted)
+    Reach:    <20 documented installations; niche Australian community
+    Notes:    No booking calendar; no certification-gated booking
+
+Coworking platforms used by makerspaces:
+
+  Nexudus       ~$135–500+/month   Artisans Asylum and similar; coworking-focused
+  Spacebring    ~$179/month        500+ shared spaces in 50+ countries
+  Cobot         Per-member         Serves 100,000+ coworkers across 90 countries
+  OfficeRnD     Enterprise-tier    Larger spaces
+
+Non-software solutions (dominant for smaller spaces):
+  - Google Sheets / Excel
+  - WildApricot (nonprofit membership tool)
+  - Square/Stripe directly with no integrated system
+  - Custom-built tools (common in hackerspaces with developer members)
+  - Nothing (honor system + cash)
+
+Key insight: The makerspace software market is highly fragmented. Dedicated
+makerspace tools likely serve well under 500 spaces globally. Most makerspaces
+that use software use general-purpose coworking platforms or nonprofit tools
+not designed for equipment management workflows.
+
+
+===========================================================================
+PRICING AND WILLINGNESS TO PAY
+===========================================================================
+
+Estimated software spend by space size:
+
+  Small   50–150 members    $50–150/month    (~$600–1,800/year)
+  Medium  150–500 members   $150–400/month   (~$2,400–5,000/year)
+  Large   500+ members      $400–800+/month  (~$5,000–10,000+/year)
+
+Typical community makerspace membership fee: $50–200/month per member.
+A 200-member space at $100/month average = $20,000/month revenue.
+Software at $200–400/month = 1–2% of revenue — standard SaaS take rate.
+
+Pricing sweet spot for mid-sized spaces: $100–300/month.
+Nexudus is appropriately priced for larger spaces but overpriced for smaller
+ones. Fab Manager at €45/month undersells the market.
+
+
+===========================================================================
+TAM CALCULATION
+===========================================================================
+
+Bottom-up estimate:
+
+  Addressable spaces (150+ members OR commercial/institutional): 5,000–8,000
+  Currently paying for some software: ~1,500–3,000
+  Untapped (spreadsheets, custom, nothing): ~3,000–6,000
+
+  Weighted average ARR per space: ~$2,400
+  At 5,000 addressable spaces: ~$12M ARR
+  At 10,000 addressable spaces: ~$24M ARR
+  With larger spaces at higher ARPU: $25–75M ARR
+
+Current market reality:
+  Nexudus (all coworking, not just makerspaces): ~$5–15M ARR estimated
+  Fabman: ~$70–150K ARR
+  Fab Manager: ~$60K ARR
+  Purpose-built makerspace software total: likely <$5M ARR globally
+
+The opportunity is capturing spaces currently on spreadsheets, Nexudus
+(overbuilt for many), or nothing.
+
+
+===========================================================================
+KEY MARKET SEGMENTS
+===========================================================================
+
+Community Nonprofit
+  Count:    ~2,000–5,000 globally
+  Budget:   $50–300/month
+  Fit:      High need, price-sensitive; often grant/donation funded
+  Trend:    US growth stagnant; EU/APAC growing
+
+University/Academic
+  Count:    ~2,000–5,000 globally
+  Budget:   Medium (institutional)
+  Fit:      Medium need; IT procurement is complex
+  Trend:    Growing in US; recovering post-COVID
+
+Library Makerspace
+  Count:    ~500–1,500
+  Budget:   Low (public-funded)
+  Fit:      Low software need; not typically membership-based
+  Trend:    Stable
+
+Commercial/Independent
+  Count:    ~200–500 (mostly APAC/EU; US declining)
+  Budget:   $200–500/month
+  Fit:      Very high need
+  Trend:    US declining; APAC growing
+
+FabLab Network
+  Count:    ~2,300–2,700
+  Budget:   Low-Medium; Fab Manager has foothold
+  Fit:      Moderate; many are government/grant-funded in developing countries
+  Trend:    Growing globally
+
+Corporate Innovation Lab
+  Count:    ~500–2,000
+  Budget:   High (IT budget)
+  Fit:      Moderate; different procurement; not typically membership-based
+  Trend:    Stable
+
+Highest-value addressable segment: Commercial makerspaces + large community
+nonprofits + university makerspaces with dedicated budgets. These spaces most
+resemble Artisans Asylum operationally.
+
+
+===========================================================================
+THE OPEN SOURCE OPPORTUNITY
+===========================================================================
+
+An open source platform that becomes the standard for the 50–500 member tier
+— where the volume is — establishes community, drives adoption, and creates
+a natural path to a hosted/managed tier for spaces that don't want to
+self-host. This is the Fab Manager model, except Fab Manager has barely
+executed on the community side (almost no external contributions; effectively
+a company product).
+
+The biggest product differentiation opportunity is equipment-specific
+workflows: training certification prerequisites, per-machine access control,
+safety lockouts. These are poorly served by generic coworking platforms and
+are uniquely valuable to makerspaces.
+
+Certification portability via Solid/WebID (planned for v1.1+) is the kind
+of differentiator that could make this genuinely compelling to the Fab Lab
+network specifically — a member's qualifications traveling with them to any
+participating makerspace is a real workflow problem for that community.
+
+
+===========================================================================
+SOURCES
+===========================================================================
+
+MIT News — How MIT's fab labs scaled around the world (2023)
+Fab Foundation — Global Community (fabfoundation.org)
+FabLabs.io — Labs Registry
+Howard Aldrich — The Evolution of US Makerspaces: A Decade of Growth and
+  Decline (2024)
+portal (Johns Hopkins) — Makerspaces in Libraries at U.S. Public Colleges
+  and Universities: A Census (2023)
+Mark Randall Havens, Medium — Why Do Most Makerspaces Break Down at Between
+  50 to 150 Members?
+Fabman — fabman.io/pricing
+Fab Manager — fab-manager.com
+MemberMatters — github.com/membermatters/MemberMatters
+Coworking Resources — Nexudus Review and Pricing
+Spacebring — Makerspace Management Software
+Coworking Resources — Cobot Review
+DataIntelo — Makerspaces Services Market (2033 forecast)
+GlobeNewswire — Coworking Space Management Software Markets (Jan 2026)
+Verified Market Research — Makerspace Services Market
+Makers Workshop — How Much Does a Makerspace Membership Cost?
+Cambridge Core — A study of makerspace health and student tool usage during
+  and after the COVID-19 pandemic
+Make: Magazine — How Many Makerspaces?
+HackerspaceWiki — hackerspaces.org
+CIRSD — Fab Labs as Tools for Sustainable Development

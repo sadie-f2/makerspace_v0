@@ -1,0 +1,306 @@
+// Makerspace management platform — Prisma schema
+// Spec: /home/sadie/src/makerspace/feature-spec-okta-v0.2.1.md
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum MemberRole {
+  MEMBER
+  STAFF
+  ADMIN
+}
+
+enum ReservationMode {
+  EXCLUSIVE
+  ADVISORY
+  NONE
+}
+
+enum LeaseAccessScope {
+  TENANT_ONLY
+  TENANT_PLUS_LIST
+  ORG_WIDE
+}
+
+enum ActorType {
+  MEMBER
+  ADMIN
+  SYSTEM
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Auth
+// ---------------------------------------------------------------------------
+
+model Member {
+  id               String      @id @default(cuid())
+  email            String      @unique
+  emailVerified    DateTime?
+  name             String
+  phone            String?
+  emergencyContact String?
+  passwordHash     String?     // local credentials auth; null when Okta active
+  oktaId           String?     @unique
+  webId            String?     // Solid/WebID — stored, not interpreted in v1.0
+  stripeCustomerId String?     @unique
+  tierId           String?
+  image            String?
+  role             MemberRole  @default(MEMBER)
+  deletedAt        DateTime?
+  deletedById      String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  tier             MemberTier?      @relation(fields: [tierId], references: [id])
+  accounts         Account[]
+  sessions         Session[]
+  certifications   Certification[]
+  reservations     Reservation[]
+  leases           Lease[]
+  dayPasses        DayPass[]
+  auditLogs        AuditLog[]       @relation("AuditActor")
+}
+
+model MemberTier {
+  id             String    @id @default(cuid())
+  name           String    @unique
+  slug           String    @unique
+  monthlyRate    Decimal   @db.Decimal(10, 2)
+  canBook        Boolean   @default(true)
+  canRentStudio  Boolean   @default(false)
+  canRentStorage Boolean   @default(true)
+  buildingAccess Boolean   @default(true)
+  active         Boolean   @default(true)
+  sortOrder      Int       @default(0)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  members        Member[]
+}
+
+// NextAuth v5 required tables
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user Member @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user Member @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Equipment & Certifications
+// ---------------------------------------------------------------------------
+
+model EquipmentClass {
+  id             String          @id @default(cuid())
+  name           String          @unique
+  description    String?
+  deletedAt      DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  certifications Certification[]
+  resources      Resource[]
+}
+
+model Certification {
+  id               String   @id @default(cuid())
+  memberId         String
+  equipmentClassId String
+  grantedAt        DateTime @default(now())
+  grantedById      String
+  revokedAt        DateTime?
+  revokedById      String?
+
+  member         Member         @relation(fields: [memberId], references: [id])
+  equipmentClass EquipmentClass @relation(fields: [equipmentClassId], references: [id])
+
+  @@unique([memberId, equipmentClassId])
+}
+
+// ---------------------------------------------------------------------------
+// Resource tree (unified model for tools, rooms, studios, storage, etc.)
+// ---------------------------------------------------------------------------
+
+model Resource {
+  id                  String           @id @default(cuid())
+  name                String
+  description         String?
+  typeTag             String           // descriptive only — never used to branch logic
+  parentId            String?
+  reservable          Boolean          @default(false)
+  leasable            Boolean          @default(false)
+  reservationMode     ReservationMode  @default(NONE)
+  leaseAccessScope    LeaseAccessScope @default(ORG_WIDE)
+  requiresCertClassId String?
+  deletedAt           DateTime?
+  deletedById         String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  parent            Resource?       @relation("ResourceTree", fields: [parentId], references: [id])
+  children          Resource[]      @relation("ResourceTree")
+  requiresCertClass EquipmentClass? @relation(fields: [requiresCertClassId], references: [id])
+  space             Space?
+  reservations      Reservation[]
+  leases            Lease[]
+}
+
+// ---------------------------------------------------------------------------
+// Reservations (time-bounded bookings)
+// ---------------------------------------------------------------------------
+
+model Reservation {
+  id          String    @id @default(cuid())
+  resourceId  String
+  memberId    String
+  startAt     DateTime
+  endAt       DateTime
+  notes       String?
+  deletedAt   DateTime? // soft cancel
+  deletedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id])
+  member   Member   @relation(fields: [memberId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Leases (studio/storage long-term assignments)
+// ---------------------------------------------------------------------------
+
+model Lease {
+  id                       String    @id @default(cuid())
+  resourceId               String
+  memberId                 String
+  startDate                DateTime
+  endDate                  DateTime? // null = ongoing
+  monthlyRate              Decimal   @db.Decimal(10, 2)
+  stripeSubscriptionItemId String?
+  deletedAt                DateTime?
+  deletedById              String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  resource Resource @relation(fields: [resourceId], references: [id])
+  member   Member   @relation(fields: [memberId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Day passes (physical fob model — no Okta/Brivo provisioning)
+// ---------------------------------------------------------------------------
+
+model DayPass {
+  id                    String    @id @default(cuid())
+  memberId              String?   // null for walk-in purchases
+  purchasedAt           DateTime  @default(now())
+  validDate             DateTime
+  fobNumber             String?
+  stripePaymentIntentId String?
+  returnedAt            DateTime?
+  notes                 String?
+  createdAt             DateTime  @default(now())
+
+  member Member? @relation(fields: [memberId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Floor plans & spaces
+// ---------------------------------------------------------------------------
+
+model FloorPlan {
+  id        String   @id @default(cuid())
+  building  String
+  floor     Int
+  svgPath   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  spaces Space[]
+
+  @@unique([building, floor])
+}
+
+model Space {
+  id          String   @id @default(cuid())
+  externalId  String   @unique // matches data-space-id in SVG; permanent join key
+  name        String
+  blockType   String
+  floorPlanId String
+  resourceId  String?  @unique // nullable for non-bookable common areas
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  floorPlan FloorPlan @relation(fields: [floorPlanId], references: [id])
+  resource  Resource? @relation(fields: [resourceId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Audit log (append-only — application code never updates or deletes rows)
+// ---------------------------------------------------------------------------
+
+model AuditLog {
+  id         String    @id @default(cuid())
+  timestamp  DateTime  @default(now())
+  actorId    String?   // null = system or webhook
+  actorType  ActorType @default(MEMBER)
+  action     String    // "create" | "update" | "delete" | "restore" | "undo"
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  note       String?
+  ipAddress  String?
+
+  actor Member? @relation("AuditActor", fields: [actorId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// System configuration (single row; systemFreeze halts all writes)
+// ---------------------------------------------------------------------------
+
+model SystemConfig {
+  id           String   @id @default(cuid())
+  systemFreeze Boolean  @default(false)
+  updatedById  String?
+  updatedAt    DateTime @updatedAt
+}

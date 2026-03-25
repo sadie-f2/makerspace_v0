@@ -1,0 +1,88 @@
+import NextAuth from "next-auth";
+import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import type { MemberRole } from "@/generated/prisma/enums";
+
+// Extend NextAuth types to carry makerspace-specific session data
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: MemberRole;
+      tierId: string | null;
+    };
+  }
+  interface User {
+    role: MemberRole;
+    tierId: string | null;
+  }
+}
+
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: { strategy: "jwt" },
+
+  providers: [
+    Credentials({
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials) {
+        const email = credentials?.email;
+        const password = credentials?.password;
+        if (typeof email !== "string" || typeof password !== "string") {
+          return null;
+        }
+
+        const member = await prisma.member.findUnique({
+          where: { email, deletedAt: null },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            tierId: true,
+            passwordHash: true,
+          },
+        });
+
+        if (!member?.passwordHash) return null;
+
+        const valid = await bcrypt.compare(password, member.passwordHash);
+        if (!valid) return null;
+
+        return {
+          id: member.id,
+          name: member.name,
+          email: member.email,
+          role: member.role,
+          tierId: member.tierId,
+        };
+      },
+    }),
+    // OktaProvider will be added here when sandbox credentials are available
+  ],
+
+  callbacks: {
+    jwt({ token, user }) {
+      if (user) {
+        token.role = user.role;
+        token.tierId = user.tierId;
+      }
+      return token;
+    },
+    session({ session, token }) {
+      session.user.id = token.sub!;
+      session.user.role = token.role as MemberRole;
+      session.user.tierId = (token.tierId ?? null) as string | null;
+      return session;
+    },
+  },
+
+  pages: {
+    signIn: "/login",
+  },
+});
