@@ -107,15 +107,7 @@ export default async function SpaceTypesPage() {
         </div>
         <div className="space-y-1">
           {!indent && <Label className="text-xs text-gray-500">Color</Label>}
-          <div className="flex items-center gap-1.5">
-            <input
-              type="color"
-              name="color"
-              defaultValue={t.color ?? "#ffffff"}
-              className="h-8 w-10 rounded border cursor-pointer"
-            />
-            <Input name="color" defaultValue={t.color ?? ""} placeholder="#f5f5f5" className="h-8 text-sm" />
-          </div>
+          <Input name="color" defaultValue={t.color ?? ""} placeholder="#f5f5f5" className="h-8 text-sm" />
         </div>
         <div className="space-y-1">
           {!indent && <Label className="text-xs text-gray-500">Active</Label>}
