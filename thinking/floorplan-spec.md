@@ -10,7 +10,8 @@ This spec covers how the application represents, imports, displays, and links to
 ## Definitions
 
 **Space** — any physically bounded area tracked in the system: studio unit, shop, meeting room,
-common area. Every Space node in the Resource tree has an optional floor plan reference.
+common area, storage unit. Every Space node in the Resource tree has an optional floor plan
+reference.
 
 **Studio** — a private space leased by a member or group of members. Defined as N × 50 SF base
 units; sizes offered are 50, 100, and 200 SF. ~250 units exist across two buildings.
@@ -18,6 +19,27 @@ units; sizes offered are 50, 100, and 200 SF. ~250 units exist across two buildi
 **Base unit** — the smallest independently assignable studio area (50 SF). Larger studios are
 always contiguous groups of base units assigned together. Whether a group can be subdivided is
 a staff-managed configuration flag, not auto-derived from the DXF.
+
+**Common space** — hallways, lobbies, shared circulation, and non-bookable areas. Mutable
+(layout changes are structural DXF updates). May be non-contiguous — a single `common_space`
+record in the database can represent multiple physically separate areas (e.g. all hallways on
+a floor as one named zone). No assignment or booking logic; present on the floor plan for
+visual context and wayfinding.
+
+**Storage space** — leasable storage areas. Several subtypes exist, each with distinct
+physical form and DXF symbology:
+
+| Subtype | Description | DXF representation |
+|---------|-------------|-------------------|
+| `pallet` | Full pallet footprint on the floor | Block insert, layer `storage` |
+| `shelf` | Individual shelf level within a shelving unit | Block insert with level attribute; separate DXF layer per level (see below) |
+| `tool_cart` | Dedicated floor space for a member's tool cart | Block insert, layer `storage` |
+
+Shelf storage is multi-level. Each level is drawn on a separate DXF layer
+(`shelf_l1`, `shelf_l2`, `shelf_l3`, etc.) so levels can be shown or hidden
+independently in the floor plan viewer. The block name encodes the subtype
+(e.g. `shelf-std` for a standard shelf bay). The level is read from the layer name,
+not the block.
 
 ---
 
@@ -42,13 +64,20 @@ layer 0. No specific world-coordinate origin is required in the drawing.
 
 ### Layer vocabulary
 
-Three layers carry semantic meaning; all other layers are imported as background geometry.
+Layers with semantic meaning — all others imported as background geometry.
 
-| Layer   | Contents                                      | Identity carrier       |
-|---------|-----------------------------------------------|------------------------|
-| `0`     | Building envelope (outer perimeter, walls)    | —                      |
-| `studio`| Studio unit block inserts                     | Block name + position  |
-| `shop`  | Closed LWPOLYLINE perimeters of shop areas    | Text label (see below) |
+| Layer        | Contents                                           | Identity carrier            |
+|--------------|----------------------------------------------------|-----------------------------|
+| `0`          | Building envelope (outer perimeter, walls)         | —                           |
+| `studio`     | Studio unit block inserts                          | Block name + position       |
+| `shop`       | Closed LWPOLYLINE perimeters of shop areas         | Text label (see below)      |
+| `common`     | LWPOLYLINE perimeters of common areas              | Text label on `common_label`|
+| `storage`    | Storage unit block inserts (pallets, tool carts)   | Block name + position       |
+| `shelf_l1`   | Shelf bay blocks, level 1 (lowest)                 | Block name + position       |
+| `shelf_l2`   | Shelf bay blocks, level 2                          | Block name + position       |
+| `shelf_l3`   | Shelf bay blocks, level 3                          | Block name + position       |
+| `shop_label` | TEXT labels inside shop perimeters                 | —                           |
+| `common_label`| TEXT labels inside common area perimeters         | —                           |
 
 ### Studio blocks
 
@@ -70,6 +99,41 @@ inside its perimeter on a layer named `shop_label`. The text value is the shop's
 
 The pipeline assigns each shop polyline its ID by point-in-polygon lookup against the
 `shop_label` layer. A shop polyline with no enclosing label is flagged as an import warning.
+
+### Common space
+
+Common areas (hallways, lobbies, circulation) are drawn as closed LWPOLYLINEs on layer
+`common`. Identity works identically to shops: a TEXT label on `common_label` inside each
+perimeter carries the stable ID (e.g. `hallway_north`, `lobby_main`).
+
+Non-contiguous common areas that belong to the same named zone (e.g. all corridors on a
+floor) are drawn as separate polylines but share the same label text. The pipeline emits
+one `data-space-id` per unique label value; multiple polygons may carry the same ID. The
+database `Space` record represents the zone, not each individual polygon. This is the one
+case where a single space maps to multiple SVG elements.
+
+Common spaces have no `Resource` record — they are not bookable or leasable. They are
+rendered on the floor plan as a neutral fill for visual context.
+
+### Storage space
+
+Storage units are placed as block INSERT entities.
+
+| Block name  | Subtype     | Layer         | Notes                        |
+|-------------|-------------|---------------|------------------------------|
+| `stor-pal`  | Pallet      | `storage`     | Standard pallet footprint    |
+| `stor-cart` | Tool cart   | `storage`     | Tool cart floor space        |
+| `shelf-std` | Shelf bay   | `shelf_l1/2/3`| One insert per level per bay |
+
+Shelf bays are inserted once per occupied level. A 3-level bay with members on levels 1
+and 3 has two INSERT entities: one on `shelf_l1` and one on `shelf_l3`. The pipeline reads
+the layer name to determine level and emits `data-level="1"` etc. on the SVG element.
+
+The floor plan viewer can toggle shelf levels independently using SVG layer visibility.
+The browser default shows all levels; a level selector control shows/hides `shelf_l*` groups.
+
+Space IDs for storage follow the same positional pattern as studios:
+`stor-pal@142.0,87.0`, `shelf-std@55.0,22.0:l2`.
 
 ---
 
@@ -184,7 +248,11 @@ Inline SVG allows the application to:
 | My studio    | `#cce5ff` (blue)  |
 | Selected     | `#fff3cd` (amber) |
 
-Shops and meeting rooms use analogous booking-state colours.
+Storage units and shops use analogous booking-state colours. Common spaces render as a
+fixed neutral fill (`#f5f5f5`) with no interactive state — they are background context only.
+
+Shelf levels each render as a distinct SVG `<g>` group with `id="shelf_l1"` etc., allowing
+CSS or JavaScript to show/hide levels independently.
 
 ---
 
@@ -212,6 +280,9 @@ Shops and meeting rooms use analogous booking-state colours.
 | New room added to building          | DXF              | DXF re-export → diff import     |
 | Room renamed                        | Application DB   | Edit in admin UI (not DXF)      |
 | Wall moved (layout change)          | DXF              | DXF re-export → full import     |
+| Storage unit added/removed          | DXF              | DXF re-export → diff import     |
+| Shelf level added to a bay          | DXF              | Add insert on new shelf layer → diff import |
+| Common area boundary changed        | DXF              | DXF re-export → diff import     |
 
 The DXF is the source of truth for geometry only. All operational state (assignments, bookings,
 names, descriptions) lives in the database and is never overwritten by a DXF import.
