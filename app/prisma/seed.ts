@@ -30,6 +30,44 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Space type configuration
+  // ---------------------------------------------------------------------------
+  // Top-level types first (no parent)
+  const topLevelTypes = [
+    { slug: "org",          label: "Organization",  dxfLayer: null,      color: null,      isBookable: false, isLeasable: false, sortOrder: 0 },
+    { slug: "shop",         label: "Shop",          dxfLayer: "shop",    color: "#dbeafe", isBookable: true,  isLeasable: false, sortOrder: 1 },
+    { slug: "tool",         label: "Tool",          dxfLayer: null,      color: null,      isBookable: true,  isLeasable: false, sortOrder: 2 },
+    { slug: "meeting_room", label: "Meeting Room",  dxfLayer: null,      color: "#fef9c3", isBookable: true,  isLeasable: false, sortOrder: 3 },
+    { slug: "studio_unit",  label: "Studio Unit",   dxfLayer: "studio",  color: "#dcfce7", isBookable: false, isLeasable: true,  sortOrder: 4 },
+    { slug: "storage_unit", label: "Storage",       dxfLayer: "storage", color: "#fde8d8", isBookable: false, isLeasable: true,  sortOrder: 5 },
+    { slug: "common_area",  label: "Common Area",   dxfLayer: "common",  color: "#f5f5f5", isBookable: false, isLeasable: false, sortOrder: 6 },
+  ];
+  const typeMap: Record<string, string> = {};
+  for (const t of topLevelTypes) {
+    const row = await prisma.spaceTypeConfig.upsert({
+      where: { slug: t.slug },
+      update: {},
+      create: t,
+    });
+    typeMap[t.slug] = row.id;
+  }
+
+  // Storage subtypes (children of storage_unit)
+  const storageSubtypes = [
+    { slug: "storage_pallet",    label: "Pallet",    dxfLayer: "storage",  color: null, isBookable: false, isLeasable: true, sortOrder: 0 },
+    { slug: "storage_shelf",     label: "Shelf",     dxfLayer: "shelf_l*", color: null, isBookable: false, isLeasable: true, sortOrder: 1 },
+    { slug: "storage_tool_cart", label: "Tool Cart", dxfLayer: "storage",  color: null, isBookable: false, isLeasable: true, sortOrder: 2 },
+  ];
+  for (const t of storageSubtypes) {
+    await prisma.spaceTypeConfig.upsert({
+      where: { slug: t.slug },
+      update: {},
+      create: { ...t, parentId: typeMap["storage_unit"] },
+    });
+  }
+  console.log(`Seeded ${topLevelTypes.length + storageSubtypes.length} space type configs`);
+
+  // ---------------------------------------------------------------------------
   // Equipment classes
   // ---------------------------------------------------------------------------
   const classes = [

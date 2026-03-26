@@ -244,6 +244,28 @@ model DayPass {
 }
 
 // ---------------------------------------------------------------------------
+// Space type configuration (org-configurable; slug is the stable internal key)
+// ---------------------------------------------------------------------------
+
+model SpaceTypeConfig {
+  id         String   @id @default(cuid())
+  slug       String   @unique // permanent internal key — never change once spaces are assigned
+  label      String           // display name; freely editable (e.g. "Shop" → "Lab")
+  parentId   String?          // non-null for subtypes (e.g. storage variants)
+  dxfLayer   String?          // DXF layer name or pattern; null = not directly on floor plan
+  color      String?          // hex fill for floor plan viewer; null = inherit from parent or theme default
+  isBookable Boolean  @default(false)
+  isLeasable Boolean  @default(false)
+  active     Boolean  @default(true)
+  sortOrder  Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  parent   SpaceTypeConfig?  @relation("SpaceTypeTree", fields: [parentId], references: [id])
+  children SpaceTypeConfig[] @relation("SpaceTypeTree")
+}
+
+// ---------------------------------------------------------------------------
 // Floor plans & spaces
 // ---------------------------------------------------------------------------
 

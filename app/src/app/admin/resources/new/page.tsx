@@ -7,18 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const TYPE_TAGS = [
-  "org",
-  "shop",
-  "tool",
-  "meeting_room",
-  "studio_unit",
-  "storage_unit",
-  "common_area",
-];
-
 export default async function NewResourcePage() {
-  const [parents, equipmentClasses] = await Promise.all([
+  const [parents, equipmentClasses, spaceTypes] = await Promise.all([
     prisma.resource.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true, typeTag: true },
@@ -28,6 +18,11 @@ export default async function NewResourcePage() {
       where: { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.spaceTypeConfig.findMany({
+      where: { active: true },
+      select: { slug: true, label: true, parentId: true },
+      orderBy: { sortOrder: "asc" },
     }),
   ]);
 
@@ -94,8 +89,10 @@ export default async function NewResourcePage() {
             required
             className="w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
           >
-            {TYPE_TAGS.map(t => (
-              <option key={t} value={t}>{t}</option>
+            {spaceTypes.map(t => (
+              <option key={t.slug} value={t.slug}>
+                {t.parentId ? `  ↳ ${t.label}` : t.label}
+              </option>
             ))}
           </select>
         </div>

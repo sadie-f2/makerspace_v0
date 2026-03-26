@@ -8,16 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const TYPE_TAGS = [
-  "org",
-  "shop",
-  "tool",
-  "meeting_room",
-  "studio_unit",
-  "storage_unit",
-  "common_area",
-];
-
 export default async function ResourceDetailPage({
   params,
 }: {
@@ -25,7 +15,7 @@ export default async function ResourceDetailPage({
 }) {
   const { id } = await params;
 
-  const [resource, allResources, equipmentClasses] = await Promise.all([
+  const [resource, allResources, equipmentClasses, spaceTypes] = await Promise.all([
     prisma.resource.findUnique({
       where: { id, deletedAt: null },
       include: {
@@ -47,6 +37,11 @@ export default async function ResourceDetailPage({
       where: { deletedAt: null },
       select: { id: true, name: true },
       orderBy: { name: "asc" },
+    }),
+    prisma.spaceTypeConfig.findMany({
+      where: { active: true },
+      select: { slug: true, label: true, parentId: true },
+      orderBy: { sortOrder: "asc" },
     }),
   ]);
 
@@ -175,8 +170,10 @@ export default async function ResourceDetailPage({
             defaultValue={resource.typeTag}
             className="w-full border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
           >
-            {TYPE_TAGS.map(t => (
-              <option key={t} value={t}>{t}</option>
+            {spaceTypes.map(t => (
+              <option key={t.slug} value={t.slug}>
+                {t.parentId ? `  ↳ ${t.label}` : t.label}
+              </option>
             ))}
           </select>
         </div>
