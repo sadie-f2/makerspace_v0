@@ -158,6 +158,65 @@ The admin dashboard includes an **Audit & Recovery** section:
 
 ---
 
+## Out-of-Band (Direct DB) Fixes
+
+Sometimes a problem requires direct `psql` access — data the application cannot reach,
+a fix that must bypass the undo window, or a situation where the app itself is broken.
+This is legitimate and expected. The convention:
+
+**Any direct DB fix must be accompanied by a manual `AuditLog` row.**
+
+The audit log is append-only and application-managed. A direct DB fix bypasses it by
+default. To keep the audit trail coherent, the operator writes the entry by hand:
+
+```sql
+INSERT INTO "AuditLog" (
+  id, timestamp, "actorId", "actorType", action,
+  "entityType", "entityId", before, after, note, "ipAddress"
+) VALUES (
+  gen_random_uuid(),
+  NOW(),
+  NULL,                          -- null = system/out-of-band actor
+  'SYSTEM',
+  'update',
+  'Member',                      -- entity type
+  'cjld2cy...',                  -- entity id
+  '{"tierId": "old-id"}',        -- before state (JSON)
+  '{"tierId": "new-id"}',        -- after state (JSON)
+  'Manual fix: wrong tier assigned at import. Corrected by [name] on [date].',
+  NULL
+);
+```
+
+The `note` field is the most important part — it should explain what happened, why
+the fix was needed, and who made it.
+
+**Readability of cuids in the log:**
+`entityId` is a cuid (e.g. `cjld2cy...`), not a human-readable name. To look up the
+full record during a fix session:
+
+```sql
+-- find a member by name when you only have the id in the audit log
+SELECT id, name, email FROM "Member" WHERE id = 'cjld2cy...';
+
+-- or search by name to get the id first
+SELECT id, name, email FROM "Member" WHERE name ILIKE '%smith%';
+```
+
+The audit log is not designed to be self-contained — it is a trail of events that
+points to records in the main tables. Joins are expected during review.
+
+**Why not automate this at the Prisma level?**
+Prisma extensions can intercept all queries and write audit rows automatically. This
+was considered and rejected: automatic interception is indiscriminate — it captures
+reads, internal NextAuth session lookups, seed runs, and health checks alongside
+meaningful mutations. The signal-to-noise ratio is poor. Intentional audit writes at
+the application level, with context, are more useful for the "fix a mistake" use case.
+The tradeoff: discipline is required to actually write those entries. This convention
+extends that discipline to out-of-band fixes.
+
+---
+
 ## What This Does Not Cover
 
 - **Database-level point-in-time recovery**: handled by DigitalOcean Managed PostgreSQL
