@@ -1,8 +1,9 @@
-"use server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { audit } from "@/lib/audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,6 +19,7 @@ export default async function NewMemberPage() {
 
   async function createMember(formData: FormData) {
     "use server";
+    const session = await auth();
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const phone = (formData.get("phone") as string) || null;
@@ -28,6 +30,15 @@ export default async function NewMemberPage() {
 
     const member = await prisma.member.create({
       data: { name, email, phone, tierId, passwordHash },
+    });
+
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "create",
+      entityType: "Member",
+      entityId: member.id,
+      before: null,
+      after: { name, email, phone, tierId },
     });
 
     redirect(`/admin/members/${member.id}`);

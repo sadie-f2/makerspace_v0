@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { audit } from "@/lib/audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +42,7 @@ export default async function NewResourcePage() {
     const reservationMode = (formData.get("reservationMode") as string) || "NONE";
     const requiresCertClassId = (formData.get("requiresCertClassId") as string) || null;
 
+    const session = await auth();
     const r = await prisma.resource.create({
       data: {
         name,
@@ -51,6 +54,14 @@ export default async function NewResourcePage() {
         reservationMode: reservationMode as "EXCLUSIVE" | "ADVISORY" | "NONE",
         requiresCertClassId,
       },
+    });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "create",
+      entityType: "Resource",
+      entityId: r.id,
+      before: null,
+      after: { name, description, typeTag, parentId, reservable, leasable, reservationMode, requiresCertClassId },
     });
     redirect(`/admin/resources/${r.id}`);
   }

@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { audit } from "@/lib/audit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +52,9 @@ export default async function ResourceDetailPage({
 
   if (!resource) notFound();
 
+  const session = await auth();
+  const actorId = session?.user.id ?? null;
+
   async function updateResource(formData: FormData) {
     "use server";
     const name = formData.get("name") as string;
@@ -74,15 +79,41 @@ export default async function ResourceDetailPage({
         requiresCertClassId,
       },
     });
+    await audit({
+      actorId,
+      action: "update",
+      entityType: "Resource",
+      entityId: id,
+      before: {
+        name: resource!.name,
+        description: resource!.description,
+        typeTag: resource!.typeTag,
+        parentId: resource!.parentId,
+        reservable: resource!.reservable,
+        leasable: resource!.leasable,
+        reservationMode: resource!.reservationMode,
+        requiresCertClassId: resource!.requiresCertClassId,
+      },
+      after: { name, description, typeTag, parentId, reservable, leasable, reservationMode, requiresCertClassId },
+    });
     redirect(`/admin/resources/${id}`);
   }
 
   async function deleteResource(formData: FormData) {
     "use server";
     void formData;
+    const deletedAt = new Date();
     await prisma.resource.update({
       where: { id },
-      data: { deletedAt: new Date() },
+      data: { deletedAt },
+    });
+    await audit({
+      actorId,
+      action: "delete",
+      entityType: "Resource",
+      entityId: id,
+      before: { name: resource!.name, deletedAt: null },
+      after: { deletedAt },
     });
     redirect("/admin/resources");
   }

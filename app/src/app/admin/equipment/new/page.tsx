@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { audit } from "@/lib/audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,9 +10,18 @@ import { Label } from "@/components/ui/label";
 export default function NewEquipmentClassPage() {
   async function createClass(formData: FormData) {
     "use server";
+    const session = await auth();
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
     const ec = await prisma.equipmentClass.create({ data: { name, description } });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "create",
+      entityType: "EquipmentClass",
+      entityId: ec.id,
+      before: null,
+      after: { name, description },
+    });
     redirect(`/admin/equipment/${ec.id}`);
   }
 

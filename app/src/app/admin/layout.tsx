@@ -12,6 +12,7 @@ const navLinks = [
   { href: "/admin/resources", label: "Resources" },
   { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit", label: "Audit" },
   { href: "/admin/settings", label: "Settings" },
 ];
 

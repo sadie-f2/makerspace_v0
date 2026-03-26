@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { audit } from "@/lib/audit";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
@@ -45,10 +46,19 @@ export default async function MemberDetailPage({
 
   async function assignTier(formData: FormData) {
     "use server";
-    const tierId = formData.get("tierId") as string | null;
+    const tierId = (formData.get("tierId") as string) || null;
     await prisma.member.update({
       where: { id },
-      data: { tierId: tierId || null },
+      data: { tierId },
+    });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update",
+      entityType: "Member",
+      entityId: id,
+      before: { tierId: member!.tierId },
+      after: { tierId },
+      note: "Tier assignment changed",
     });
     redirect(`/admin/members/${id}`);
   }
@@ -57,10 +67,21 @@ export default async function MemberDetailPage({
     "use server";
     const equipmentClassId = formData.get("equipmentClassId") as string;
     const grantedById = session!.user.id;
-    await prisma.certification.upsert({
+    const existing = await prisma.certification.findUnique({
+      where: { memberId_equipmentClassId: { memberId: id, equipmentClassId } },
+    });
+    const cert = await prisma.certification.upsert({
       where: { memberId_equipmentClassId: { memberId: id, equipmentClassId } },
       update: { revokedAt: null, revokedById: null, grantedAt: new Date(), grantedById },
       create: { memberId: id, equipmentClassId, grantedById },
+    });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: existing ? "restore" : "create",
+      entityType: "Certification",
+      entityId: cert.id,
+      before: existing ? { revokedAt: existing.revokedAt } : null,
+      after: { memberId: id, equipmentClassId, revokedAt: null },
     });
     redirect(`/admin/members/${id}`);
   }
@@ -68,9 +89,18 @@ export default async function MemberDetailPage({
   async function revokeCert(formData: FormData) {
     "use server";
     const certId = formData.get("certId") as string;
+    const revokedAt = new Date();
     await prisma.certification.update({
       where: { id: certId },
-      data: { revokedAt: new Date(), revokedById: session!.user.id },
+      data: { revokedAt, revokedById: session!.user.id },
+    });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update",
+      entityType: "Certification",
+      entityId: certId,
+      before: { revokedAt: null },
+      after: { revokedAt },
     });
     redirect(`/admin/members/${id}`);
   }
