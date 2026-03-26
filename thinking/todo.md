@@ -7,6 +7,13 @@
 - [ ] Admin floor plan import page — upload DXF → run dxf_to_svg.py → store revision
 - [ ] Admin floor plan revision viewer — list revisions, activate, compare
 
+## Data Integrity
+
+- [ ] Wire up AuditLog writes in application code (currently schema only, nothing writes to it)
+- [ ] Design DB query logging — enable PG statement logging on DO, review log access
+- [ ] Manual rollback design — admin UI for applying before-state snapshots from audit log
+- [ ] Runtime validation of JWT role claim (replace `as MemberRole` cast with checked parse)
+
 ## DevOps
 
 - [ ] Dockerfile for Next.js app
