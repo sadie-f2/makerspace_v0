@@ -1,8 +1,5 @@
-export default function SettingsPage() {
+export default function SettingsGeneralPage() {
   return (
-    <div>
-      <h2 className="text-lg font-semibold mb-4">Settings</h2>
-      <p className="text-gray-500 text-sm">Coming soon.</p>
-    </div>
+    <p className="text-sm text-gray-500">General settings coming soon.</p>
   );
 }
