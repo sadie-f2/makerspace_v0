@@ -16,7 +16,7 @@ export async function GET(
             select: {
               id: true,
               name: true,
-              leases: {
+              rentals: {
                 where: { deletedAt: null, endDate: null },
                 select: { member: { select: { name: true } } },
                 orderBy: { startDate: "desc" },
@@ -41,7 +41,7 @@ export async function GET(
     blockType: s.blockType,
     resourceId: s.resourceId,
     resourceName: s.resource?.name ?? null,
-    occupantName: s.resource?.leases[0]?.member.name ?? null,
+    occupantName: s.resource?.rentals[0]?.member.name ?? null,
   }));
 
   return NextResponse.json({

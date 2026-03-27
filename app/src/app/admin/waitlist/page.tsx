@@ -22,7 +22,7 @@ export default async function WaitlistPage() {
       where: {
         typeTag: { in: ["studio", "studio_unit", "storage_unit"] },
         deletedAt: null,
-        leases: { none: { deletedAt: null, endDate: null } },
+        rentals: { none: { deletedAt: null, endDate: null } },
       },
       select: { id: true, name: true, typeTag: true },
       orderBy: { name: "asc" },
@@ -62,13 +62,13 @@ export default async function WaitlistPage() {
       include: { member: true },
     });
     if (!entry || entry.status !== "OFFERED" || !entry.offeredResourceId) return;
-    // Create lease with rate TBD (staff will set via member detail)
-    const lease = await prisma.lease.create({
+    // Create rental with rate TBD (staff will set via member detail)
+    const rental = await prisma.rental.create({
       data: {
         memberId:    entry.memberId,
         resourceId:  entry.offeredResourceId,
         startDate:   new Date(),
-        monthlyRate: 0, // staff sets actual rate on the lease via member detail
+        monthlyRate: 0, // staff sets actual rate on the rental via member detail
       },
     });
     await prisma.waitlistEntry.update({
@@ -77,7 +77,7 @@ export default async function WaitlistPage() {
     });
     await audit({
       actorId: session?.user.id ?? null,
-      action: "create", entityType: "Lease", entityId: lease.id,
+      action: "create", entityType: "Rental", entityId: rental.id,
       before: null,
       after:  { memberId: entry.memberId, resourceId: entry.offeredResourceId },
       note:   "Created from waitlist offer acceptance",
@@ -171,7 +171,7 @@ export default async function WaitlistPage() {
                   <form action={acceptOffer}>
                     <input type="hidden" name="entryId" value={e.id} />
                     <Button type="submit" size="sm" className="h-7 text-xs">
-                      Accept (create lease)
+                      Accept (create rental)
                     </Button>
                   </form>
                 )}

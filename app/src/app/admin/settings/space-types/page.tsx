@@ -95,38 +95,38 @@ export default async function SpaceTypesPage() {
 
   function TypeRow({ t, indent = false }: { t: typeof types[0]; indent?: boolean }) {
     return (
-      <form action={updateType} className={`grid grid-cols-[1fr_1fr_120px_80px_auto_auto] gap-2 items-end py-3 border-b last:border-0 ${indent ? "pl-6" : ""}`}>
-        <input type="hidden" name="id" value={t.id} />
-        <div className="space-y-1">
-          {!indent && <Label className="text-xs text-gray-500">Label</Label>}
-          <Input name="label" defaultValue={t.label} className="h-8 text-sm" />
-        </div>
-        <div className="space-y-1">
-          {!indent && <Label className="text-xs text-gray-500">DXF Layer</Label>}
-          <Input name="dxfLayer" defaultValue={t.dxfLayer ?? ""} placeholder="e.g. studio" className="h-8 text-sm" />
-        </div>
-        <div className="space-y-1">
-          {!indent && <Label className="text-xs text-gray-500">Color</Label>}
-          <Input name="color" defaultValue={t.color ?? ""} placeholder="#f5f5f5" className="h-8 text-sm" />
-        </div>
-        <div className="space-y-1">
-          {!indent && <Label className="text-xs text-gray-500">Active</Label>}
-          <div className="flex items-center h-8">
-            <input type="checkbox" name="active" defaultChecked={t.active} className="rounded" />
+      <div className={`grid grid-cols-[1fr_1fr_120px_80px_auto_auto] gap-2 items-end py-3 border-b last:border-0 ${indent ? "pl-6" : ""}`}>
+        <form action={updateType} className="contents">
+          <input type="hidden" name="id" value={t.id} />
+          <div className="space-y-1">
+            {!indent && <Label className="text-xs text-gray-500">Label</Label>}
+            <Input name="label" defaultValue={t.label} className="h-8 text-sm" />
           </div>
-        </div>
-        <div className={!indent ? "pt-5" : ""}>
-          <Button type="submit" size="sm" variant="outline">Save</Button>
-        </div>
-        <div className={!indent ? "pt-5" : ""}>
-          <form action={deleteType}>
-            <input type="hidden" name="id" value={t.id} />
-            <Button type="submit" size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50">
-              ✕
-            </Button>
-          </form>
-        </div>
-      </form>
+          <div className="space-y-1">
+            {!indent && <Label className="text-xs text-gray-500">DXF Layer</Label>}
+            <Input name="dxfLayer" defaultValue={t.dxfLayer ?? ""} placeholder="e.g. studio" className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            {!indent && <Label className="text-xs text-gray-500">Color</Label>}
+            <Input name="color" defaultValue={t.color ?? ""} placeholder="#f5f5f5" className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            {!indent && <Label className="text-xs text-gray-500">Active</Label>}
+            <div className="flex items-center h-8">
+              <input type="checkbox" name="active" defaultChecked={t.active} className="rounded" />
+            </div>
+          </div>
+          <div className={!indent ? "pt-5" : ""}>
+            <Button type="submit" size="sm" variant="outline">Save</Button>
+          </div>
+        </form>
+        <form action={deleteType} className={!indent ? "pt-5" : ""}>
+          <input type="hidden" name="id" value={t.id} />
+          <Button type="submit" size="sm" variant="ghost" className="text-red-500 hover:text-red-700 hover:bg-red-50">
+            ✕
+          </Button>
+        </form>
+      </div>
     );
   }
 

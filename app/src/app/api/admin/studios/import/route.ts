@@ -45,14 +45,14 @@ export async function POST(req: Request) {
 
     created++;
 
-    // Create lease if assignee provided
+    // Create rental if assignee provided
     if (row.assigneeEmail) {
       const member = await prisma.member.findFirst({
         where: { email: row.assigneeEmail, deletedAt: null },
       });
       if (member) {
         const monthlyRate = parseFloat(row.monthlyRate) || 0;
-        const lease = await prisma.lease.create({
+        const rental = await prisma.rental.create({
           data: {
             resourceId: resource.id,
             memberId: member.id,
@@ -64,8 +64,8 @@ export async function POST(req: Request) {
           actorId: null,
           actorType: "SYSTEM",
           action: "create",
-          entityType: "Lease",
-          entityId: lease.id,
+          entityType: "Rental",
+          entityId: rental.id,
           after: { resourceId: resource.id, memberId: member.id, monthlyRate },
           note: "Studio import assignment",
         });

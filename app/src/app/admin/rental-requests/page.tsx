@@ -6,11 +6,11 @@ import { audit } from "@/lib/audit";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-export default async function LeaseRequestsPage() {
+export default async function RentalRequestsPage() {
   const session = await auth();
 
   const [pending, recent] = await Promise.all([
-    prisma.leaseRequest.findMany({
+    prisma.rentalRequest.findMany({
       where:   { status: "PENDING" },
       include: {
         member:   { select: { id: true, name: true, email: true } },
@@ -18,7 +18,7 @@ export default async function LeaseRequestsPage() {
       },
       orderBy: { createdAt: "asc" },
     }),
-    prisma.leaseRequest.findMany({
+    prisma.rentalRequest.findMany({
       where:   { status: { in: ["APPROVED", "REJECTED"] } },
       include: {
         member:     { select: { id: true, name: true } },
@@ -35,69 +35,69 @@ export default async function LeaseRequestsPage() {
     const requestId = formData.get("requestId") as string;
     const reviewNote = (formData.get("reviewNote") as string).trim() || null;
 
-    const req = await prisma.leaseRequest.findUnique({
+    const req = await prisma.rentalRequest.findUnique({
       where: { id: requestId },
       include: { resource: true },
     });
     if (!req || req.status !== "PENDING") return;
 
     if (req.requestType === "START") {
-      // Create the lease
+      // Create the rental
       const startDate   = req.requestedStartDate ?? new Date();
       const monthlyRate = req.requestedMonthlyRate ?? 0;
-      const lease = await prisma.lease.create({
+      const rental = await prisma.rental.create({
         data: { memberId: req.memberId, resourceId: req.resourceId, startDate, monthlyRate },
       });
-      await prisma.leaseRequest.update({
+      await prisma.rentalRequest.update({
         where: { id: requestId },
         data: {
           status: "APPROVED",
           reviewedById: session?.user.id,
           reviewedAt: new Date(),
           reviewNote,
-          leaseId: lease.id,
+          rentalId: rental.id,
         },
       });
       await audit({
         actorId: session?.user.id ?? null,
-        action: "create", entityType: "Lease", entityId: lease.id,
+        action: "create", entityType: "Rental", entityId: rental.id,
         before: null,
         after: { memberId: req.memberId, resourceId: req.resourceId, startDate, monthlyRate },
-        note: "Created via lease request approval",
+        note: "Created via rental request approval",
       });
     } else {
-      // END — close the active lease for this resource + member
-      const lease = await prisma.lease.findFirst({
+      // END — close the active rental for this resource + member
+      const rental = await prisma.rental.findFirst({
         where: { memberId: req.memberId, resourceId: req.resourceId, deletedAt: null, endDate: null },
       });
-      if (lease) {
-        await prisma.lease.update({ where: { id: lease.id }, data: { endDate: new Date() } });
+      if (rental) {
+        await prisma.rental.update({ where: { id: rental.id }, data: { endDate: new Date() } });
         await audit({
           actorId: session?.user.id ?? null,
-          action: "update", entityType: "Lease", entityId: lease.id,
+          action: "update", entityType: "Rental", entityId: rental.id,
           before: { endDate: null }, after: { endDate: new Date() },
-          note: "Ended via lease request approval",
+          note: "Ended via rental request approval",
         });
       }
-      await prisma.leaseRequest.update({
+      await prisma.rentalRequest.update({
         where: { id: requestId },
         data: {
           status: "APPROVED",
           reviewedById: session?.user.id,
           reviewedAt: new Date(),
           reviewNote,
-          leaseId: lease?.id,
+          rentalId: rental?.id,
         },
       });
     }
-    redirect("/admin/lease-requests");
+    redirect("/admin/rental-requests");
   }
 
   async function reject(formData: FormData) {
     "use server";
     const requestId  = formData.get("requestId") as string;
     const reviewNote = (formData.get("reviewNote") as string).trim() || null;
-    await prisma.leaseRequest.update({
+    await prisma.rentalRequest.update({
       where: { id: requestId },
       data: {
         status: "REJECTED",
@@ -106,7 +106,7 @@ export default async function LeaseRequestsPage() {
         reviewNote,
       },
     });
-    redirect("/admin/lease-requests");
+    redirect("/admin/rental-requests");
   }
 
   const badge = (status: string) => {
@@ -117,7 +117,7 @@ export default async function LeaseRequestsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h2 className="text-lg font-semibold mb-6">Lease Requests</h2>
+      <h2 className="text-lg font-semibold mb-6">Rental Requests</h2>
 
       {/* ── Pending ── */}
       <section className="mb-10">

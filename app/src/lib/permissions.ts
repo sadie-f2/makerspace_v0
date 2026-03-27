@@ -15,8 +15,8 @@ export const PERMISSIONS = {
   CERTS_GRANT_ANY: "certifications.grant",                            // any class
   certsGrantClass: (classId: string) => `certifications.grant.${classId}`, // one class
 
-  // Lease / space management
-  LEASES_MANAGE: "leases.manage",
+  // Rental / space management
+  RENTALS_MANAGE: "rentals.manage",
 } as const;
 
 // Display labels for the permission picker UI
@@ -27,7 +27,7 @@ export const PERMISSION_LABELS: Record<string, string> = {
   "equipment.mark_down":   "Equipment — mark out of service",
   "equipment.mark_service":"Equipment — return to service",
   "certifications.grant":  "Certifications — approve any class",
-  "leases.manage":         "Leases — create / end",
+  "rentals.manage":        "Rentals — create / end",
 };
 
 /**

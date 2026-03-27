@@ -11,7 +11,7 @@ export default async function StudiosPage() {
       where: { typeTag: { in: ["studio_unit", "studio"] }, deletedAt: null },
       include: {
         spaces: { select: { id: true, externalId: true } },
-        leases: {
+        rentals: {
           where: { deletedAt: null, endDate: null },
           include: { member: { select: { id: true, name: true } } },
           take: 1,
@@ -34,8 +34,8 @@ export default async function StudiosPage() {
     }),
   ]);
 
-  const occupied = studios.filter(s => s.leases.length > 0);
-  const vacant   = studios.filter(s => s.leases.length === 0);
+  const occupied = studios.filter(s => s.rentals.length > 0);
+  const vacant   = studios.filter(s => s.rentals.length === 0);
 
   return (
     <div className="max-w-3xl">
@@ -62,7 +62,7 @@ export default async function StudiosPage() {
       {studios.length > 0 ? (
         <div className="rounded-md border divide-y mb-8">
           {studios.map(s => {
-            const tenant = s.leases[0]?.member;
+            const tenant = s.rentals[0]?.member;
             return (
               <div key={s.id} id={`resource-${s.id}`} className="flex items-center justify-between px-4 py-3 text-sm transition-colors">
                 <div>

@@ -35,7 +35,7 @@ export async function GET(
             select: {
               id: true,
               name: true,
-              leases: {
+              rentals: {
                 where: { deletedAt: null, endDate: null },
                 select: { member: { select: { name: true } } },
                 orderBy: { startDate: "desc" },
@@ -69,7 +69,7 @@ export async function GET(
     const extras: string[] = [];
     if (space.resourceId)       extras.push(`data-resource-id="${space.resourceId}"`);
     if (space.resource?.name)   extras.push(`data-resource-name="${escapeAttr(space.resource.name)}"`);
-    const occupant = space.resource?.leases[0]?.member.name;
+    const occupant = space.resource?.rentals[0]?.member.name;
     if (occupant)               extras.push(`data-occupant="${escapeAttr(occupant)}"`);
 
     return extras.length > 0 ? `${base} ${extras.join(" ")}` : base;
@@ -83,7 +83,7 @@ export async function GET(
     if (type === "common_area")              fill = FILL.common;
     else if (type === "shop")                fill = FILL.shop;
     else if (!space.resourceId)              fill = FILL.unlinked;
-    else if (space.resource?.leases[0])      fill = FILL.occupied;
+    else if (space.resource?.rentals[0])      fill = FILL.occupied;
     else if (type === "storage_unit")        fill = FILL.storage;
     else                                     fill = FILL.vacant;
 

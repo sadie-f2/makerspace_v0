@@ -1,0 +1,1697 @@
+diff --git a/app/prisma/migrations/20260326191041_space_resource_one_to_many/migration.sql b/app/prisma/migrations/20260326191041_space_resource_one_to_many/migration.sql
+new file mode 100644
+index 0000000..fc3b773
+--- /dev/null
++++ b/app/prisma/migrations/20260326191041_space_resource_one_to_many/migration.sql
+@@ -0,0 +1,2 @@
++-- DropIndex
++DROP INDEX "Space_resourceId_key";
+diff --git a/app/prisma/migrations/20260326192327_add_floorplan_revisions/migration.sql b/app/prisma/migrations/20260326192327_add_floorplan_revisions/migration.sql
+new file mode 100644
+index 0000000..90daa09
+--- /dev/null
++++ b/app/prisma/migrations/20260326192327_add_floorplan_revisions/migration.sql
+@@ -0,0 +1,14 @@
++-- CreateTable
++CREATE TABLE "FloorPlanRevision" (
++    "id" TEXT NOT NULL,
++    "floorPlanId" TEXT NOT NULL,
++    "svgPath" TEXT NOT NULL,
++    "note" TEXT,
++    "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
++    "uploadedById" TEXT,
++
++    CONSTRAINT "FloorPlanRevision_pkey" PRIMARY KEY ("id")
++);
++
++-- AddForeignKey
++ALTER TABLE "FloorPlanRevision" ADD CONSTRAINT "FloorPlanRevision_floorPlanId_fkey" FOREIGN KEY ("floorPlanId") REFERENCES "FloorPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+diff --git a/app/prisma/schema.prisma b/app/prisma/schema.prisma
+index ca0dee0..ad54968 100644
+--- a/app/prisma/schema.prisma
++++ b/app/prisma/schema.prisma
+@@ -179,7 +179,7 @@ model Resource {
+   parent            Resource?       @relation("ResourceTree", fields: [parentId], references: [id])
+   children          Resource[]      @relation("ResourceTree")
+   requiresCertClass EquipmentClass? @relation(fields: [requiresCertClassId], references: [id])
+-  space             Space?
++  spaces            Space[]
+   reservations      Reservation[]
+   leases            Lease[]
+ }
+@@ -273,22 +273,34 @@ model FloorPlan {
+   id        String   @id @default(cuid())
+   building  String
+   floor     Int
+-  svgPath   String
++  svgPath   String   // always the current approved SVG path (denormalized from latest revision)
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+ 
+-  spaces Space[]
++  spaces    Space[]
++  revisions FloorPlanRevision[]
+ 
+   @@unique([building, floor])
+ }
+ 
++model FloorPlanRevision {
++  id           String   @id @default(cuid())
++  floorPlanId  String
++  svgPath      String
++  note         String?
++  uploadedAt   DateTime @default(now())
++  uploadedById String?  // Member id; null = system/CLI upload
++
++  floorPlan    FloorPlan @relation(fields: [floorPlanId], references: [id])
++}
++
+ model Space {
+   id          String   @id @default(cuid())
+   externalId  String   @unique // matches data-space-id in SVG; permanent join key
+   name        String
+   blockType   String
+   floorPlanId String
+-  resourceId  String?  @unique // nullable for non-bookable common areas
++  resourceId  String?          // nullable for common areas; multiple units can share one Resource (studio grouping)
+   createdAt   DateTime @default(now())
+   updatedAt   DateTime @updatedAt
+ 
+diff --git a/app/public/floorplans/a_1.svg b/app/public/floorplans/a_1.svg
+new file mode 100644
+index 0000000..f54e412
+--- /dev/null
++++ b/app/public/floorplans/a_1.svg
+@@ -0,0 +1,139 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 600" width="900" height="600">
++  <!-- Building envelope -->
++  <rect x="10" y="10" width="880" height="580" fill="#f8f8f8" stroke="#333" stroke-width="3" rx="2"/>
++
++  <!-- Common area: main hallway (horizontal corridor) -->
++  <polygon
++    data-space-id="hallway_main"
++    data-type="common_area"
++    points="10,280 890,280 890,320 10,320"
++    fill="#e8e8e8"
++    stroke="#bbb"
++    stroke-width="1"
++  />
++
++  <!-- Common area: entrance lobby -->
++  <polygon
++    data-space-id="lobby_main"
++    data-type="common_area"
++    points="380,10 520,10 520,100 380,100"
++    fill="#e8e8e8"
++    stroke="#bbb"
++    stroke-width="1"
++  />
++
++  <!-- Shop: Laser Shop (top-left zone) -->
++  <polygon
++    data-space-id="LASER"
++    data-type="shop"
++    points="10,10 200,10 200,280 10,280"
++    fill="#dbeafe"
++    stroke="#93c5fd"
++    stroke-width="1.5"
++    class="space-interactive"
++  />
++  <text x="105" y="155" text-anchor="middle" font-size="11" fill="#1e40af" font-family="sans-serif">Laser Shop</text>
++
++  <!-- Shop: Woodshop (top-right zone) -->
++  <polygon
++    data-space-id="WOODSHOP"
++    data-type="shop"
++    points="700,10 890,10 890,280 700,280"
++    fill="#dbeafe"
++    stroke="#93c5fd"
++    stroke-width="1.5"
++    class="space-interactive"
++  />
++  <text x="795" y="155" text-anchor="middle" font-size="11" fill="#1e40af" font-family="sans-serif">Woodshop</text>
++
++  <!-- Studio units: upper row (6 units across middle) -->
++  <!-- s50-l blocks: 80px wide × 60px tall -->
++  <rect data-space-id="s50-l:220:20"  data-type="studio_unit" x="220" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:300:20"  data-type="studio_unit" x="300" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:380:20"  data-type="studio_unit" x="380" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:460:20"  data-type="studio_unit" x="460" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:540:20"  data-type="studio_unit" x="540" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:620:20"  data-type="studio_unit" x="620" y="20"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++
++  <!-- Studio units: second row -->
++  <rect data-space-id="s50-l:220:80"  data-type="studio_unit" x="220" y="80"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:300:80"  data-type="studio_unit" x="300" y="80"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <!-- 380-460 is lobby -->
++  <rect data-space-id="s50-l:460:80"  data-type="studio_unit" x="460" y="80"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:540:80"  data-type="studio_unit" x="540" y="80"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:620:80"  data-type="studio_unit" x="620" y="80"  width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++
++  <!-- Studio units: third row -->
++  <rect data-space-id="s50-l:220:140" data-type="studio_unit" x="220" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:300:140" data-type="studio_unit" x="300" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:380:140" data-type="studio_unit" x="380" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:460:140" data-type="studio_unit" x="460" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:540:140" data-type="studio_unit" x="540" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:620:140" data-type="studio_unit" x="620" y="140" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++
++  <!-- Studio units: fourth row -->
++  <rect data-space-id="s50-l:220:200" data-type="studio_unit" x="220" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:300:200" data-type="studio_unit" x="300" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:380:200" data-type="studio_unit" x="380" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:460:200" data-type="studio_unit" x="460" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:540:200" data-type="studio_unit" x="540" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="s50-l:620:200" data-type="studio_unit" x="620" y="200" width="78" height="58" fill="#dcfce7" stroke="#86efac" stroke-width="1.5" rx="1" class="space-interactive"/>
++
++  <!-- Lower half: shops and storage -->
++  <!-- Shop: Metal Shop (bottom-left) -->
++  <polygon
++    data-space-id="METALSHOP"
++    data-type="shop"
++    points="10,320 300,320 300,590 10,590"
++    fill="#dbeafe"
++    stroke="#93c5fd"
++    stroke-width="1.5"
++    class="space-interactive"
++  />
++  <text x="155" y="460" text-anchor="middle" font-size="11" fill="#1e40af" font-family="sans-serif">Metal Shop</text>
++
++  <!-- Shop: CNC Shop (bottom-middle) -->
++  <polygon
++    data-space-id="CNC"
++    data-type="shop"
++    points="300,320 600,320 600,590 300,590"
++    fill="#dbeafe"
++    stroke="#93c5fd"
++    stroke-width="1.5"
++    class="space-interactive"
++  />
++  <text x="450" y="460" text-anchor="middle" font-size="11" fill="#1e40af" font-family="sans-serif">CNC Shop</text>
++
++  <!-- Storage area (bottom-right) -->
++  <rect data-space-id="stor-pal:640:340" data-type="storage_unit" x="620" y="330" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:700:340" data-type="storage_unit" x="680" y="330" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:760:340" data-type="storage_unit" x="740" y="330" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:820:340" data-type="storage_unit" x="800" y="330" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:640:400" data-type="storage_unit" x="620" y="400" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:700:400" data-type="storage_unit" x="680" y="400" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:760:400" data-type="storage_unit" x="740" y="400" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++  <rect data-space-id="stor-pal:820:400" data-type="storage_unit" x="800" y="400" width="50" height="50" fill="#fde8d8" stroke="#fdba74" stroke-width="1.5" rx="1" class="space-interactive"/>
++
++  <!-- Shelf bays (level 1) -->
++  <g id="shelf_l1">
++    <rect data-space-id="shelf-std:640:470:l1" data-type="storage_unit" data-level="1" x="620" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++    <rect data-space-id="shelf-std:680:470:l1" data-type="storage_unit" data-level="1" x="660" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++    <rect data-space-id="shelf-std:720:470:l1" data-type="storage_unit" data-level="1" x="700" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++    <rect data-space-id="shelf-std:760:470:l1" data-type="storage_unit" data-level="1" x="740" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++    <rect data-space-id="shelf-std:800:470:l1" data-type="storage_unit" data-level="1" x="780" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++    <rect data-space-id="shelf-std:840:470:l1" data-type="storage_unit" data-level="1" x="820" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive"/>
++  </g>
++  <!-- Shelf bays (level 2) - same positions, different data-space-id -->
++  <g id="shelf_l2">
++    <rect data-space-id="shelf-std:640:470:l2" data-type="storage_unit" data-level="2" x="620" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++    <rect data-space-id="shelf-std:680:470:l2" data-type="storage_unit" data-level="2" x="660" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++    <rect data-space-id="shelf-std:720:470:l2" data-type="storage_unit" data-level="2" x="700" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++    <rect data-space-id="shelf-std:760:470:l2" data-type="storage_unit" data-level="2" x="740" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++    <rect data-space-id="shelf-std:800:470:l2" data-type="storage_unit" data-level="2" x="780" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++    <rect data-space-id="shelf-std:840:470:l2" data-type="storage_unit" data-level="2" x="820" y="470" width="30" height="80" fill="#fed7aa" stroke="#fb923c" stroke-width="1" rx="1" class="space-interactive" style="display:none"/>
++  </g>
++
++  <!-- Labels for storage area -->
++  <text x="730" y="325" text-anchor="middle" font-size="10" fill="#9a3412" font-family="sans-serif">Pallets</text>
++  <text x="730" y="465" text-anchor="middle" font-size="10" fill="#9a3412" font-family="sans-serif">Shelves</text>
++</svg>
+diff --git a/app/public/floorplans/test-2_1_1774559166205.svg b/app/public/floorplans/test-2_1_1774559166205.svg
+new file mode 100644
+index 0000000..d572760
+--- /dev/null
++++ b/app/public/floorplans/test-2_1_1774559166205.svg
+@@ -0,0 +1,76 @@
++<?xml version="1.0" encoding="utf-8"?>
++<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="410.00" viewBox="0 0 1000 410.00">
++  <g id="envelope">
++    <path d="M0.00,410.00L1000.00,400.00L1000.00,0.00L0.00,0.00L0.00,410.00Z" style="fill:none;stroke:#333;stroke-width:2" />
++  </g>
++  <g id="shops">
++    <polygon points="0.00,0.00 200.00,0.00 200.00,300.00 -0.00,300.00" style="fill:#e5e7eb;stroke:#4a6fa5;stroke-width:1.5" data-space-id="wood_shop" data-type="shop" />
++    <text x="100.0" y="150.0" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">wood shop</text>
++    <polygon points="488.07,230.26 401.48,230.26 401.48,405.99 488.07,405.12" style="fill:#e5e7eb;stroke:#4a6fa5;stroke-width:1.5" data-space-id="fabrication_shop" data-type="shop" />
++    <text x="444.8" y="317.9" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">fabrication shop</text>
++  </g>
++  <g id="studios">
++    <polygon points="920.00,400.00 1000.00,400.00 1000.00,340.00 920.00,340.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-31" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">31</text>
++    <polygon points="920.00,340.00 1000.00,340.00 1000.00,280.00 920.00,280.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-26" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">26</text>
++    <polygon points="920.00,280.00 1000.00,280.00 1000.00,220.00 920.00,220.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-21" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">21</text>
++    <polygon points="920.00,220.00 1000.00,220.00 1000.00,160.00 920.00,160.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-16" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">16</text>
++    <polygon points="920.00,160.00 1000.00,160.00 1000.00,100.00 920.00,100.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-11" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">11</text>
++    <polygon points="940.00,80.00 1000.00,80.00 1000.00,0.00 940.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-6" data-block="s50-p" data-type="studio_unit" />
++    <text x="970.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">6</text>
++    <polygon points="880.00,80.00 940.00,80.00 940.00,0.00 880.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-5" data-block="s50-p" data-type="studio_unit" />
++    <text x="910.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">5</text>
++    <polygon points="820.00,80.00 880.00,80.00 880.00,0.00 820.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-4" data-block="s50-p" data-type="studio_unit" />
++    <text x="850.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">4</text>
++    <polygon points="760.00,80.00 820.00,80.00 820.00,0.00 760.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-3" data-block="s50-p" data-type="studio_unit" />
++    <text x="790.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">3</text>
++    <polygon points="700.00,80.00 760.00,80.00 760.00,0.00 700.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-2" data-block="s50-p" data-type="studio_unit" />
++    <text x="730.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">2</text>
++    <polygon points="640.00,80.00 700.00,80.00 700.00,0.00 640.00,0.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-1" data-block="s50-p" data-type="studio_unit" />
++    <text x="670.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">1</text>
++    <polygon points="798.35,401.22 878.35,401.22 878.35,341.22 798.35,341.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-30" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">30</text>
++    <polygon points="798.35,341.22 878.35,341.22 878.35,281.22 798.35,281.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-25" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">25</text>
++    <polygon points="798.35,281.22 878.35,281.22 878.35,221.22 798.35,221.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-20" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">20</text>
++    <polygon points="798.35,221.22 878.35,221.22 878.35,161.22 798.35,161.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-15" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">15</text>
++    <polygon points="798.35,161.22 878.35,161.22 878.35,101.22 798.35,101.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-10" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">10</text>
++    <polygon points="718.35,401.22 798.35,401.22 798.35,341.22 718.35,341.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-29" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">29</text>
++    <polygon points="718.35,341.22 798.35,341.22 798.35,281.22 718.35,281.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-24" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">24</text>
++    <polygon points="718.35,281.22 798.35,281.22 798.35,221.22 718.35,221.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-19" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">19</text>
++    <polygon points="718.35,221.22 798.35,221.22 798.35,161.22 718.35,161.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-14" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">14</text>
++    <polygon points="718.35,161.22 798.35,161.22 798.35,101.22 718.35,101.22" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-9" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">9</text>
++    <polygon points="595.71,400.00 675.71,400.00 675.71,340.00 595.71,340.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-28" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">28</text>
++    <polygon points="595.71,340.00 675.71,340.00 675.71,280.00 595.71,280.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-23" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">23</text>
++    <polygon points="595.71,280.00 675.71,280.00 675.71,220.00 595.71,220.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-18" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">18</text>
++    <polygon points="595.71,220.00 675.71,220.00 675.71,160.00 595.71,160.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-13" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">13</text>
++    <polygon points="595.71,160.00 675.71,160.00 675.71,100.00 595.71,100.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-8" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">8</text>
++    <polygon points="515.71,400.00 595.71,400.00 595.71,340.00 515.71,340.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-27" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">27</text>
++    <polygon points="515.71,340.00 595.71,340.00 595.71,280.00 515.71,280.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-22" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">22</text>
++    <polygon points="515.71,280.00 595.71,280.00 595.71,220.00 515.71,220.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-17" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">17</text>
++    <polygon points="515.71,220.00 595.71,220.00 595.71,160.00 515.71,160.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-12" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">12</text>
++    <polygon points="515.71,160.00 595.71,160.00 595.71,100.00 515.71,100.00" style="fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1" data-space-id="studio-7" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">7</text>
++  </g>
++</svg>
+\ No newline at end of file
+diff --git a/app/public/floorplans/test_1_1774558511569.svg b/app/public/floorplans/test_1_1774558511569.svg
+new file mode 100644
+index 0000000..f336ed6
+--- /dev/null
++++ b/app/public/floorplans/test_1_1774558511569.svg
+@@ -0,0 +1,76 @@
++<?xml version="1.0" encoding="utf-8"?>
++<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="410.00" viewBox="0 0 1000 410.00">
++  <g id="envelope">
++    <path d="M0.00,410.00L1000.00,400.00L1000.00,0.00L0.00,0.00L0.00,410.00Z" style="fill:none;stroke:#333;stroke-width:2" />
++  </g>
++  <g id="shops">
++    <polygon points="0.00,0.00 200.00,0.00 200.00,300.00 -0.00,300.00" style="stroke:#4a6fa5;stroke-width:1.5" data-space-id="wood_shop" data-type="shop" />
++    <text x="100.0" y="150.0" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">wood shop</text>
++    <polygon points="488.07,230.26 401.48,230.26 401.48,405.99 488.07,405.12" style="stroke:#4a6fa5;stroke-width:1.5" data-space-id="fabrication_shop" data-type="shop" />
++    <text x="444.8" y="317.9" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">fabrication shop</text>
++  </g>
++  <g id="studios">
++    <polygon points="920.00,400.00 1000.00,400.00 1000.00,340.00 920.00,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-31" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">31</text>
++    <polygon points="920.00,340.00 1000.00,340.00 1000.00,280.00 920.00,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-26" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">26</text>
++    <polygon points="920.00,280.00 1000.00,280.00 1000.00,220.00 920.00,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-21" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">21</text>
++    <polygon points="920.00,220.00 1000.00,220.00 1000.00,160.00 920.00,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-16" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">16</text>
++    <polygon points="920.00,160.00 1000.00,160.00 1000.00,100.00 920.00,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-11" data-block="s50-l" data-type="studio_unit" />
++    <text x="960.0" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">11</text>
++    <polygon points="940.00,80.00 1000.00,80.00 1000.00,0.00 940.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-6" data-block="s50-p" data-type="studio_unit" />
++    <text x="970.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">6</text>
++    <polygon points="880.00,80.00 940.00,80.00 940.00,0.00 880.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-5" data-block="s50-p" data-type="studio_unit" />
++    <text x="910.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">5</text>
++    <polygon points="820.00,80.00 880.00,80.00 880.00,0.00 820.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-4" data-block="s50-p" data-type="studio_unit" />
++    <text x="850.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">4</text>
++    <polygon points="760.00,80.00 820.00,80.00 820.00,0.00 760.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-3" data-block="s50-p" data-type="studio_unit" />
++    <text x="790.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">3</text>
++    <polygon points="700.00,80.00 760.00,80.00 760.00,0.00 700.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-2" data-block="s50-p" data-type="studio_unit" />
++    <text x="730.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">2</text>
++    <polygon points="640.00,80.00 700.00,80.00 700.00,0.00 640.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-1" data-block="s50-p" data-type="studio_unit" />
++    <text x="670.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">1</text>
++    <polygon points="798.35,401.22 878.35,401.22 878.35,341.22 798.35,341.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-30" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">30</text>
++    <polygon points="798.35,341.22 878.35,341.22 878.35,281.22 798.35,281.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-25" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">25</text>
++    <polygon points="798.35,281.22 878.35,281.22 878.35,221.22 798.35,221.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-20" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">20</text>
++    <polygon points="798.35,221.22 878.35,221.22 878.35,161.22 798.35,161.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-15" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">15</text>
++    <polygon points="798.35,161.22 878.35,161.22 878.35,101.22 798.35,101.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-10" data-block="s50-l" data-type="studio_unit" />
++    <text x="838.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">10</text>
++    <polygon points="718.35,401.22 798.35,401.22 798.35,341.22 718.35,341.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-29" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">29</text>
++    <polygon points="718.35,341.22 798.35,341.22 798.35,281.22 718.35,281.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-24" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">24</text>
++    <polygon points="718.35,281.22 798.35,281.22 798.35,221.22 718.35,221.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-19" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">19</text>
++    <polygon points="718.35,221.22 798.35,221.22 798.35,161.22 718.35,161.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-14" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">14</text>
++    <polygon points="718.35,161.22 798.35,161.22 798.35,101.22 718.35,101.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-9" data-block="s50-l" data-type="studio_unit" />
++    <text x="758.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">9</text>
++    <polygon points="595.71,400.00 675.71,400.00 675.71,340.00 595.71,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-28" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">28</text>
++    <polygon points="595.71,340.00 675.71,340.00 675.71,280.00 595.71,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-23" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">23</text>
++    <polygon points="595.71,280.00 675.71,280.00 675.71,220.00 595.71,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-18" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">18</text>
++    <polygon points="595.71,220.00 675.71,220.00 675.71,160.00 595.71,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-13" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">13</text>
++    <polygon points="595.71,160.00 675.71,160.00 675.71,100.00 595.71,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-8" data-block="s50-l" data-type="studio_unit" />
++    <text x="635.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">8</text>
++    <polygon points="515.71,400.00 595.71,400.00 595.71,340.00 515.71,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-27" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">27</text>
++    <polygon points="515.71,340.00 595.71,340.00 595.71,280.00 515.71,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-22" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">22</text>
++    <polygon points="515.71,280.00 595.71,280.00 595.71,220.00 515.71,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-17" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">17</text>
++    <polygon points="515.71,220.00 595.71,220.00 595.71,160.00 515.71,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-12" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">12</text>
++    <polygon points="515.71,160.00 595.71,160.00 595.71,100.00 515.71,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-7" data-block="s50-l" data-type="studio_unit" />
++    <text x="555.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">7</text>
++  </g>
++</svg>
+\ No newline at end of file
+diff --git a/app/src/app/admin/floorplans/[id]/page.tsx b/app/src/app/admin/floorplans/[id]/page.tsx
+new file mode 100644
+index 0000000..c798ab6
+--- /dev/null
++++ b/app/src/app/admin/floorplans/[id]/page.tsx
+@@ -0,0 +1,206 @@
++"use client";
++
++import { useEffect, useState } from "react";
++import { useParams } from "next/navigation";
++import Link from "next/link";
++import FloorPlanViewer, { type SpaceState } from "@/components/FloorPlanViewer";
++import { Badge } from "@/components/ui/badge";
++
++interface Revision {
++  id: string;
++  svgPath: string;
++  note: string | null;
++  uploadedAt: string;
++}
++
++interface FloorPlanData {
++  id: string;
++  building: string;
++  floor: number;
++  svgPath: string;
++  spaces: SpaceState[];
++  revisions: Revision[];
++}
++
++export default function FloorPlanDetailPage() {
++  const { id } = useParams<{ id: string }>();
++  const [data, setData] = useState<FloorPlanData | null>(null);
++  const [activeSvg, setActiveSvg] = useState<string>("");
++  const [isHistorical, setIsHistorical] = useState(false);
++  const [selected, setSelected] = useState<{ externalId: string; state: SpaceState | undefined } | null>(null);
++  const [syncing, setSyncing] = useState(false);
++  const [syncResult, setSyncResult] = useState<string>("");
++  const [error, setError] = useState(false);
++
++  useEffect(() => {
++    fetch(`/api/admin/floorplans/${id}`)
++      .then(r => r.ok ? r.json() : Promise.reject())
++      .then((d: FloorPlanData) => {
++        setData(d);
++        setActiveSvg(d.svgPath);
++      })
++      .catch(() => setError(true));
++  }, [id]);
++
++  async function handleSync() {
++    setSyncing(true);
++    setSyncResult("");
++    const res = await fetch(`/api/admin/floorplans/${id}/sync`, { method: "POST" });
++    const json = await res.json();
++    setSyncing(false);
++    setSyncResult(`${json.created} new, ${json.existing} existing, ${json.total} total`);
++  }
++
++  function switchRevision(rev: Revision) {
++    setActiveSvg(rev.svgPath);
++    setIsHistorical(rev.svgPath !== data?.svgPath);
++    setSelected(null);
++  }
++
++  if (error) return <p className="text-sm text-red-500">Floor plan not found.</p>;
++  if (!data) return <p className="text-sm text-gray-400">Loading…</p>;
++
++  return (
++    <div>
++      <div className="flex items-center justify-between mb-4">
++        <div className="flex items-center gap-3">
++          <Link href="/admin/floorplans" className="text-sm text-gray-500 hover:underline">
++            ← Floor Plans
++          </Link>
++          <span className="text-gray-300">/</span>
++          <h2 className="text-sm font-semibold">Building {data.building} — Floor {data.floor}</h2>
++          {isHistorical && (
++            <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">Historical view</Badge>
++          )}
++        </div>
++        <div className="flex items-center gap-3">
++          {isHistorical && (
++            <button
++              onClick={() => { setActiveSvg(data.svgPath); setIsHistorical(false); }}
++              className="text-xs text-blue-600 hover:underline"
++            >
++              ← Back to current
++            </button>
++          )}
++          <button
++            onClick={handleSync}
++            disabled={syncing || isHistorical}
++            className="px-3 py-1.5 text-xs border rounded hover:bg-gray-50 disabled:opacity-40"
++          >
++            {syncing ? "Syncing…" : "Sync spaces from SVG"}
++          </button>
++        </div>
++      </div>
++
++      {syncResult && (
++        <p className="text-xs text-green-600 mb-3">{syncResult}</p>
++      )}
++
++      <div className="flex gap-6">
++        {/* Floor plan viewer */}
++        <div className="flex-1 min-w-0">
++          <FloorPlanViewer
++            svgPath={activeSvg}
++            spaces={isHistorical ? [] : data.spaces}
++            onSpaceClick={(externalId, state) => !isHistorical && setSelected({ externalId, state })}
++          />
++        </div>
++
++        {/* Side panel */}
++        <div className="w-64 shrink-0 space-y-4">
++          {/* Space detail / click panel */}
++          {!isHistorical && (
++            selected ? (
++              <div className="border rounded p-4 text-sm">
++                <div className="flex items-start justify-between mb-3">
++                  <h3 className="font-medium">
++                    {selected.state?.resourceName ?? selected.externalId}
++                  </h3>
++                  <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 text-xs">✕</button>
++                </div>
++                <dl className="space-y-2 text-xs">
++                  <div>
++                    <dt className="text-gray-400">Space ID</dt>
++                    <dd className="font-mono break-all">{selected.externalId}</dd>
++                  </div>
++                  {selected.state?.blockType && (
++                    <div>
++                      <dt className="text-gray-400">Type</dt>
++                      <dd>{selected.state.blockType}</dd>
++                    </div>
++                  )}
++                  {selected.state?.occupantName ? (
++                    <div>
++                      <dt className="text-gray-400">Occupant</dt>
++                      <dd className="font-medium">{selected.state.occupantName}</dd>
++                    </div>
++                  ) : selected.state?.resourceId ? (
++                    <div>
++                      <dt className="text-gray-400">Status</dt>
++                      <dd className="text-green-600">Vacant</dd>
++                    </div>
++                  ) : (
++                    <div>
++                      <dt className="text-gray-400">Status</dt>
++                      <dd className="text-amber-600">Not linked to resource</dd>
++                    </div>
++                  )}
++                  {selected.state?.resourceId && (
++                    <div className="pt-2">
++                      <Link href={`/admin/resources/${selected.state.resourceId}`} className="text-blue-600 hover:underline">
++                        View resource →
++                      </Link>
++                    </div>
++                  )}
++                </dl>
++              </div>
++            ) : (
++              <div className="border rounded p-4 text-xs text-gray-400">
++                Click a space to see details.
++              </div>
++            )
++          )}
++
++          {/* Space counts */}
++          {data.spaces.length > 0 && !isHistorical && (
++            <div className="border rounded p-3 text-xs space-y-1">
++              <p className="font-medium text-gray-600 mb-2">Summary</p>
++              <p>{data.spaces.length} spaces synced</p>
++              <p>{data.spaces.filter(s => s.occupantName).length} occupied</p>
++              <p>{data.spaces.filter(s => !s.occupantName && s.resourceId).length} vacant</p>
++              <p>{data.spaces.filter(s => !s.resourceId).length} unlinked</p>
++            </div>
++          )}
++
++          {/* Revisions */}
++          {data.revisions.length > 0 && (
++            <div className="border rounded p-3 text-xs">
++              <p className="font-medium text-gray-600 mb-2">Revisions ({data.revisions.length})</p>
++              <ul className="space-y-2">
++                {data.revisions.map((rev, i) => (
++                  <li key={rev.id} className={`flex items-start justify-between gap-2 ${activeSvg === rev.svgPath ? "text-gray-800" : "text-gray-400"}`}>
++                    <div className="min-w-0">
++                      <p className="truncate">{rev.note ?? `Revision ${data.revisions.length - i}`}</p>
++                      <p className="text-gray-400">{new Date(rev.uploadedAt).toLocaleDateString()}</p>
++                    </div>
++                    <div className="flex items-center gap-1 shrink-0">
++                      {i === 0 && <Badge variant="outline" className="text-xs py-0">current</Badge>}
++                      {activeSvg !== rev.svgPath && (
++                        <button
++                          onClick={() => switchRevision(rev)}
++                          className="text-blue-500 hover:underline"
++                        >
++                          view
++                        </button>
++                      )}
++                    </div>
++                  </li>
++                ))}
++              </ul>
++            </div>
++          )}
++        </div>
++      </div>
++    </div>
++  );
++}
+diff --git a/app/src/app/admin/floorplans/page.tsx b/app/src/app/admin/floorplans/page.tsx
+new file mode 100644
+index 0000000..b18e045
+--- /dev/null
++++ b/app/src/app/admin/floorplans/page.tsx
+@@ -0,0 +1,43 @@
++import Link from "next/link";
++import { prisma } from "@/lib/prisma";
++import { Badge } from "@/components/ui/badge";
++import { Button } from "@/components/ui/button";
++import FloorPlanUpload from "@/components/FloorPlanUpload";
++
++export default async function FloorPlansPage() {
++  const floorPlans = await prisma.floorPlan.findMany({
++    orderBy: [{ building: "asc" }, { floor: "asc" }],
++    include: { _count: { select: { spaces: true } } },
++  });
++
++  return (
++    <div className="max-w-2xl">
++      <div className="flex items-center justify-between mb-6">
++        <h2 className="text-lg font-semibold">Floor Plans</h2>
++      </div>
++
++      {floorPlans.length === 0 ? (
++        <p className="text-sm text-gray-400 mb-8">No floor plans registered yet.</p>
++      ) : (
++        <div className="rounded-md border mb-8 divide-y">
++          {floorPlans.map(fp => (
++            <div key={fp.id} className="flex items-center justify-between px-4 py-3">
++              <div>
++                <span className="font-medium text-sm">Building {fp.building} — Floor {fp.floor}</span>
++                <span className="ml-3 text-xs text-gray-400 font-mono">{fp.svgPath}</span>
++              </div>
++              <div className="flex items-center gap-3">
++                <Badge variant="outline">{fp._count.spaces} spaces</Badge>
++                <Link href={`/admin/floorplans/${fp.id}`}>
++                  <Button size="sm" variant="outline">View</Button>
++                </Link>
++              </div>
++            </div>
++          ))}
++        </div>
++      )}
++
++      <FloorPlanUpload />
++    </div>
++  );
++}
+diff --git a/app/src/app/admin/layout.tsx b/app/src/app/admin/layout.tsx
+index 7bc2388..554c325 100644
+--- a/app/src/app/admin/layout.tsx
++++ b/app/src/app/admin/layout.tsx
+@@ -10,6 +10,7 @@ const navLinks = [
+   { href: "/admin/storage", label: "Storage" },
+   { href: "/admin/equipment", label: "Equipment" },
+   { href: "/admin/resources", label: "Resources" },
++  { href: "/admin/floorplans", label: "Floor Plans" },
+   { href: "/admin/bookings", label: "Bookings" },
+   { href: "/admin/reports", label: "Reports" },
+   { href: "/admin/audit", label: "Audit" },
+diff --git a/app/src/app/admin/studios/page.tsx b/app/src/app/admin/studios/page.tsx
+index 8298bfe..cdc6f8b 100644
+--- a/app/src/app/admin/studios/page.tsx
++++ b/app/src/app/admin/studios/page.tsx
+@@ -1,8 +1,91 @@
+-export default function StudiosPage() {
++import Link from "next/link";
++import { prisma } from "@/lib/prisma";
++import { Badge } from "@/components/ui/badge";
++import StudioImport from "@/components/StudioImport";
++import StudioFloorPlan from "@/components/StudioFloorPlan";
++
++export default async function StudiosPage() {
++  const [studios, unlinkedSpaces, floorPlans] = await Promise.all([
++    prisma.resource.findMany({
++      where: { typeTag: { in: ["studio_unit", "studio"] }, deletedAt: null },
++      include: {
++        spaces: { select: { id: true, externalId: true } },
++        leases: {
++          where: { deletedAt: null, endDate: null },
++          include: { member: { select: { id: true, name: true } } },
++          take: 1,
++        },
++      },
++      orderBy: { name: "asc" },
++    }),
++    prisma.space.findMany({
++      where: { blockType: "studio_unit", resourceId: null },
++      select: { externalId: true },
++      orderBy: { externalId: "asc" },
++    }),
++    // Floor plans that have at least one studio_unit space
++    prisma.floorPlan.findMany({
++      where: {
++        spaces: { some: { blockType: "studio_unit" } },
++      },
++      select: { id: true, building: true, floor: true },
++      orderBy: [{ building: "asc" }, { floor: "asc" }],
++    }),
++  ]);
++
++  const occupied = studios.filter(s => s.leases.length > 0);
++  const vacant   = studios.filter(s => s.leases.length === 0);
++
+   return (
+-    <div>
+-      <h2 className="text-lg font-semibold mb-4">Studios</h2>
+-      <p className="text-gray-500 text-sm">Coming soon.</p>
++    <div className="max-w-3xl">
++      <div className="flex items-center justify-between mb-6">
++        <h2 className="text-lg font-semibold">Studios</h2>
++        <div className="flex gap-2 text-xs text-gray-500">
++          <span>{occupied.length} occupied</span>
++          <span>·</span>
++          <span>{vacant.length} vacant</span>
++          <span>·</span>
++          <span>{unlinkedSpaces.length} unconfigured units</span>
++        </div>
++      </div>
++
++      {/* Inline floor plan viewer */}
++      <StudioFloorPlan floorPlans={floorPlans} />
++
++      {/* Studio list */}
++      {studios.length > 0 ? (
++        <div className="rounded-md border divide-y mb-8">
++          {studios.map(s => {
++            const tenant = s.leases[0]?.member;
++            return (
++              <div key={s.id} className="flex items-center justify-between px-4 py-3 text-sm">
++                <div>
++                  <span className="font-medium">{s.name}</span>
++                  <span className="ml-2 text-xs text-gray-400">
++                    {s.spaces.length} unit{s.spaces.length !== 1 ? "s" : ""}
++                  </span>
++                </div>
++                <div className="flex items-center gap-3">
++                  {tenant ? (
++                    <Link href={`/admin/members/${tenant.id}`} className="text-gray-600 hover:underline text-xs">
++                      {tenant.name}
++                    </Link>
++                  ) : (
++                    <Badge variant="outline" className="text-green-700 border-green-300">Vacant</Badge>
++                  )}
++                  <Link href={`/admin/resources/${s.id}`}>
++                    <span className="text-xs text-gray-400 hover:underline">edit</span>
++                  </Link>
++                </div>
++              </div>
++            );
++          })}
++        </div>
++      ) : (
++        <p className="text-sm text-gray-400 mb-8">No studios configured yet. Use the import panel below to define studios from floor plan units.</p>
++      )}
++
++      <StudioImport unlinkedUnits={unlinkedSpaces.map(s => s.externalId)} />
+     </div>
+   );
+ }
+diff --git a/app/src/app/api/admin/floorplans/[id]/route.ts b/app/src/app/api/admin/floorplans/[id]/route.ts
+new file mode 100644
+index 0000000..f04c338
+--- /dev/null
++++ b/app/src/app/api/admin/floorplans/[id]/route.ts
+@@ -0,0 +1,60 @@
++import { NextResponse } from "next/server";
++import { prisma } from "@/lib/prisma";
++
++export async function GET(
++  _req: Request,
++  { params }: { params: Promise<{ id: string }> }
++) {
++  const { id } = await params;
++
++  const fp = await prisma.floorPlan.findUnique({
++    where: { id },
++    include: {
++      spaces: {
++        include: {
++          resource: {
++            select: {
++              id: true,
++              name: true,
++              leases: {
++                where: { deletedAt: null, endDate: null },
++                select: { member: { select: { name: true } } },
++                orderBy: { startDate: "desc" },
++                take: 1,
++              },
++            },
++          },
++        },
++      },
++      revisions: {
++        orderBy: { uploadedAt: "desc" },
++        select: { id: true, svgPath: true, note: true, uploadedAt: true },
++      },
++    },
++  });
++
++  if (!fp) return NextResponse.json({ error: "Not found" }, { status: 404 });
++
++  const spaces = fp.spaces.map(s => ({
++    externalId: s.externalId,
++    name: s.name,
++    blockType: s.blockType,
++    resourceId: s.resourceId,
++    resourceName: s.resource?.name ?? null,
++    occupantName: s.resource?.leases[0]?.member.name ?? null,
++  }));
++
++  return NextResponse.json({
++    id: fp.id,
++    building: fp.building,
++    floor: fp.floor,
++    svgPath: fp.svgPath,
++    spaces,
++    revisions: fp.revisions.map(r => ({
++      id: r.id,
++      svgPath: r.svgPath,
++      note: r.note,
++      uploadedAt: r.uploadedAt,
++    })),
++  });
++}
+diff --git a/app/src/app/api/admin/floorplans/[id]/sync/route.ts b/app/src/app/api/admin/floorplans/[id]/sync/route.ts
+new file mode 100644
+index 0000000..7f23830
+--- /dev/null
++++ b/app/src/app/api/admin/floorplans/[id]/sync/route.ts
+@@ -0,0 +1,68 @@
++import { NextResponse } from "next/server";
++import { prisma } from "@/lib/prisma";
++import { audit } from "@/lib/audit";
++import path from "path";
++import fs from "fs/promises";
++
++export async function POST(
++  _req: Request,
++  { params }: { params: Promise<{ id: string }> }
++) {
++  const { id } = await params;
++
++  const fp = await prisma.floorPlan.findUnique({ where: { id } });
++  if (!fp) return NextResponse.json({ error: "Not found" }, { status: 404 });
++
++  // Read the SVG from disk
++  const svgFile = path.join(process.cwd(), "public", fp.svgPath);
++  let svgText: string;
++  try {
++    svgText = await fs.readFile(svgFile, "utf-8");
++  } catch {
++    return NextResponse.json({ error: `SVG not found at ${fp.svgPath}` }, { status: 422 });
++  }
++
++  // Extract all data-space-id elements
++  const spaceRegex = /data-space-id="([^"]+)"[^>]*data-type="([^"]+)"/g;
++  const found = new Map<string, string>(); // externalId → blockType
++  let m: RegExpExecArray | null;
++  while ((m = spaceRegex.exec(svgText)) !== null) {
++    found.set(m[1], m[2]);
++  }
++
++  if (found.size === 0) {
++    return NextResponse.json({ error: "No data-space-id elements found in SVG" }, { status: 422 });
++  }
++
++  // Upsert Space records
++  const results = { created: 0, existing: 0 };
++  for (const [externalId, blockType] of found.entries()) {
++    const existing = await prisma.space.findUnique({ where: { externalId } });
++    if (existing) {
++      results.existing++;
++      continue;
++    }
++    // Derive a human-readable default name from the externalId
++    const name = externalId.replace(/_/g, " ").replace(/:/g, " ").replace(/\s+/g, " ").trim();
++    await prisma.space.create({
++      data: { externalId, name, blockType, floorPlanId: id },
++    });
++    results.created++;
++  }
++
++  await audit({
++    actorId: null,
++    actorType: "SYSTEM",
++    action: "create",
++    entityType: "FloorPlan.sync",
++    entityId: id,
++    after: { svgPath: fp.svgPath, created: results.created, existing: results.existing, total: found.size },
++    note: `Sync: ${results.created} new, ${results.existing} existing, ${found.size} total in SVG`,
++  });
++
++  return NextResponse.json({
++    created: results.created,
++    existing: results.existing,
++    total: found.size,
++  });
++}
+diff --git a/app/src/app/api/admin/floorplans/upload/route.ts b/app/src/app/api/admin/floorplans/upload/route.ts
+new file mode 100644
+index 0000000..4ffb5ec
+--- /dev/null
++++ b/app/src/app/api/admin/floorplans/upload/route.ts
+@@ -0,0 +1,93 @@
++import { NextResponse } from "next/server";
++import { prisma } from "@/lib/prisma";
++import { audit } from "@/lib/audit";
++import { spawn } from "child_process";
++import path from "path";
++import fs from "fs/promises";
++import os from "os";
++
++function runScript(args: string[]): Promise<{ stdout: string; stderr: string }> {
++  return new Promise((resolve, reject) => {
++    const proc = spawn("python3", args);
++    let stdout = "";
++    let stderr = "";
++    proc.stdout.on("data", (d: Buffer) => { stdout += d.toString(); });
++    proc.stderr.on("data", (d: Buffer) => { stderr += d.toString(); });
++    proc.on("close", code => {
++      if (code === 0) resolve({ stdout, stderr });
++      else reject(new Error(stderr || `exit code ${code}`));
++    });
++  });
++}
++
++export async function POST(req: Request) {
++  const formData = await req.formData();
++  const file = formData.get("dxf") as File | null;
++  const building = (formData.get("building") as string | null)?.toUpperCase().trim();
++  const floor = parseInt(formData.get("floor") as string ?? "", 10);
++
++  if (!file || !building || isNaN(floor)) {
++    return NextResponse.json({ error: "building, floor, and dxf file are required" }, { status: 400 });
++  }
++
++  // Save DXF to a temp file
++  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "makerspace-dxf-"));
++  const dxfPath = path.join(tmpDir, `${building}_${floor}.dxf`);
++  const bytes = await file.arrayBuffer();
++  await fs.writeFile(dxfPath, Buffer.from(bytes));
++
++  // Output SVG path
++  const svgFilename = `${building.toLowerCase()}_${floor}.svg`;
++  const svgPublicPath = `/floorplans/${svgFilename}`;
++  const svgAbsPath = path.join(process.cwd(), "public", "floorplans", svgFilename);
++  await fs.mkdir(path.join(process.cwd(), "public", "floorplans"), { recursive: true });
++
++  // Locate the script
++  const scriptPath = path.join(process.cwd(), "tools", "dxf_to_svg.py");
++
++  let stdout = "";
++  let stderr = "";
++  try {
++    ({ stdout, stderr } = await runScript([scriptPath, "--input", dxfPath, "--output", svgAbsPath]));
++  } catch (err) {
++    await fs.rm(tmpDir, { recursive: true, force: true });
++    return NextResponse.json({ error: String(err), stderr }, { status: 422 });
++  } finally {
++    await fs.rm(tmpDir, { recursive: true, force: true });
++  }
++
++  // Timestamp-stamp the SVG filename so each revision has a distinct file on disk
++  const ts = Date.now();
++  const svgFilenameVersioned = `${building.toLowerCase()}_${floor}_${ts}.svg`;
++  const svgPublicPathVersioned = `/floorplans/${svgFilenameVersioned}`;
++  const svgAbsPathVersioned = path.join(process.cwd(), "public", "floorplans", svgFilenameVersioned);
++  await fs.rename(svgAbsPath, svgAbsPathVersioned);
++
++  // Register / update FloorPlan record (svgPath always = current)
++  const fp = await prisma.floorPlan.upsert({
++    where: { building_floor: { building, floor } },
++    update: { svgPath: svgPublicPathVersioned },
++    create: { building, floor, svgPath: svgPublicPathVersioned },
++  });
++
++  // Create a revision record
++  await prisma.floorPlanRevision.create({
++    data: {
++      floorPlanId:  fp.id,
++      svgPath:      svgPublicPathVersioned,
++      note:         `Uploaded: ${file.name}`,
++    },
++  });
++
++  await audit({
++    actorId: null,
++    actorType: "SYSTEM",
++    action: "create",
++    entityType: "FloorPlan",
++    entityId: fp.id,
++    after: { building, floor, svgPath: svgPublicPathVersioned },
++    note: `DXF upload: ${file.name}`,
++  });
++
++  return NextResponse.json({ id: fp.id, svgPath: svgPublicPathVersioned, stdout, stderr });
++}
+diff --git a/app/src/app/api/admin/studios/import/route.ts b/app/src/app/api/admin/studios/import/route.ts
+new file mode 100644
+index 0000000..de001fe
+--- /dev/null
++++ b/app/src/app/api/admin/studios/import/route.ts
+@@ -0,0 +1,78 @@
++import { NextResponse } from "next/server";
++import { prisma } from "@/lib/prisma";
++import { audit } from "@/lib/audit";
++
++interface ImportRow {
++  studioName: string;
++  unitIds: string[];
++  assigneeEmail: string;
++  monthlyRate: string;
++  errors: string[];
++}
++
++export async function POST(req: Request) {
++  const { rows }: { rows: ImportRow[] } = await req.json();
++  const validRows = rows.filter(r => r.errors.length === 0 && r.studioName && r.unitIds.length > 0);
++
++  let created = 0;
++  let assigned = 0;
++
++  for (const row of validRows) {
++    // Create Resource of type studio_unit
++    const resource = await prisma.resource.create({
++      data: {
++        name: row.studioName,
++        typeTag: "studio_unit",
++        leasable: true,
++      },
++    });
++
++    // Link matching Space records
++    await prisma.space.updateMany({
++      where: { externalId: { in: row.unitIds } },
++      data: { resourceId: resource.id },
++    });
++
++    await audit({
++      actorId: null,
++      actorType: "SYSTEM",
++      action: "create",
++      entityType: "Resource",
++      entityId: resource.id,
++      after: { name: row.studioName, typeTag: "studio_unit", unitIds: row.unitIds },
++      note: "Studio import",
++    });
++
++    created++;
++
++    // Create lease if assignee provided
++    if (row.assigneeEmail) {
++      const member = await prisma.member.findFirst({
++        where: { email: row.assigneeEmail, deletedAt: null },
++      });
++      if (member) {
++        const monthlyRate = parseFloat(row.monthlyRate) || 0;
++        const lease = await prisma.lease.create({
++          data: {
++            resourceId: resource.id,
++            memberId: member.id,
++            startDate: new Date(),
++            monthlyRate,
++          },
++        });
++        await audit({
++          actorId: null,
++          actorType: "SYSTEM",
++          action: "create",
++          entityType: "Lease",
++          entityId: lease.id,
++          after: { resourceId: resource.id, memberId: member.id, monthlyRate },
++          note: "Studio import assignment",
++        });
++        assigned++;
++      }
++    }
++  }
++
++  return NextResponse.json({ created, assigned });
++}
+diff --git a/app/src/components/FloorPlanUpload.tsx b/app/src/components/FloorPlanUpload.tsx
+new file mode 100644
+index 0000000..0f732d0
+--- /dev/null
++++ b/app/src/components/FloorPlanUpload.tsx
+@@ -0,0 +1,83 @@
++"use client";
++
++import { useRef, useState } from "react";
++import { useRouter } from "next/navigation";
++import { Button } from "@/components/ui/button";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++
++export default function FloorPlanUpload() {
++  const router = useRouter();
++  const fileRef = useRef<HTMLInputElement>(null);
++  const [status, setStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
++  const [message, setMessage] = useState("");
++
++  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
++    e.preventDefault();
++    setStatus("uploading");
++    setMessage("");
++
++    const form = e.currentTarget;
++    const data = new FormData(form);
++
++    try {
++      const res = await fetch("/api/admin/floorplans/upload", {
++        method: "POST",
++        body: data,
++      });
++      const json = await res.json();
++      if (!res.ok) {
++        setStatus("error");
++        setMessage(json.error + (json.stderr ? `\n${json.stderr}` : ""));
++        return;
++      }
++      setStatus("done");
++      setMessage(json.stdout || "Conversion complete.");
++      router.push(`/admin/floorplans/${json.id}`);
++    } catch (err) {
++      setStatus("error");
++      setMessage(String(err));
++    }
++  }
++
++  return (
++    <div className="border rounded-md p-4">
++      <h3 className="text-sm font-medium mb-4">Upload DXF floor plan</h3>
++      <form onSubmit={handleSubmit} className="space-y-3">
++        <div className="grid grid-cols-2 gap-3">
++          <div className="space-y-1">
++            <Label htmlFor="building" className="text-xs">Building</Label>
++            <Input id="building" name="building" placeholder="A" required className="h-8 text-sm" />
++          </div>
++          <div className="space-y-1">
++            <Label htmlFor="floor" className="text-xs">Floor</Label>
++            <Input id="floor" name="floor" type="number" placeholder="1" required className="h-8 text-sm" />
++          </div>
++        </div>
++        <div className="space-y-1">
++          <Label htmlFor="dxf" className="text-xs">DXF file</Label>
++          <input
++            ref={fileRef}
++            id="dxf"
++            name="dxf"
++            type="file"
++            accept=".dxf"
++            required
++            className="block w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border file:border-gray-300 file:text-xs file:bg-white file:hover:bg-gray-50 cursor-pointer"
++          />
++        </div>
++        <Button type="submit" size="sm" disabled={status === "uploading"}>
++          {status === "uploading" ? "Converting…" : "Upload & convert"}
++        </Button>
++      </form>
++
++      {message && (
++        <pre className={`mt-3 text-xs rounded p-3 whitespace-pre-wrap font-mono ${
++          status === "error" ? "bg-red-50 text-red-700" : "bg-gray-50 text-gray-600"
++        }`}>
++          {message}
++        </pre>
++      )}
++    </div>
++  );
++}
+diff --git a/app/src/components/FloorPlanViewer.tsx b/app/src/components/FloorPlanViewer.tsx
+new file mode 100644
+index 0000000..0a26f99
+--- /dev/null
++++ b/app/src/components/FloorPlanViewer.tsx
+@@ -0,0 +1,165 @@
++"use client";
++
++import { useEffect, useRef, useState, useCallback } from "react";
++
++export interface SpaceState {
++  externalId: string;
++  name: string;
++  blockType: string;
++  resourceId: string | null;
++  occupantName: string | null;
++  resourceName: string | null;
++}
++
++interface Props {
++  svgPath: string;
++  spaces: SpaceState[];
++  onSpaceClick?: (externalId: string, state: SpaceState | undefined) => void;
++}
++
++const FILL: Record<string, string> = {
++  vacant:   "#bbf7d0", // green — configured but unoccupied (available)
++  occupied: "#bfdbfe", // blue  — rented/assigned
++  common:   "#f5f5f5",
++  shop:     "#dbeafe",
++  storage:  "#fde8d8",
++  unlinked: "#e5e7eb", // grey  — not yet configured
++};
++
++const SHELF_LEVELS = [1, 2, 3];
++
++export default function FloorPlanViewer({ svgPath, spaces, onSpaceClick }: Props) {
++  const containerRef = useRef<HTMLDivElement>(null);
++  const [svgLoaded, setSvgLoaded] = useState(false);
++  const [shelfLevel, setShelfLevel] = useState(1);
++  const [hasShelves, setHasShelves] = useState(false);
++  const [tooltip, setTooltip] = useState<{ x: number; y: number; state: SpaceState; externalId: string } | null>(null);
++
++  // Inject SVG via ref — never via dangerouslySetInnerHTML so React
++  // doesn't touch the container on tooltip/state re-renders.
++  useEffect(() => {
++    if (!svgPath) return;
++    setSvgLoaded(false);
++    fetch(svgPath)
++      .then(r => r.text())
++      .then(html => {
++        if (containerRef.current) {
++          containerRef.current.innerHTML = html;
++          setHasShelves(html.includes("shelf_l"));
++          setSvgLoaded(true);
++        }
++      })
++      .catch(() => {});
++  }, [svgPath]);
++
++  const applyOverlay = useCallback(() => {
++    const container = containerRef.current;
++    if (!container || !svgLoaded) return;
++
++    const spaceMap = new Map(spaces.map(s => [s.externalId, s]));
++
++    SHELF_LEVELS.forEach(level => {
++      const g = container.querySelector(`#shelf_l${level}`) as HTMLElement | null;
++      if (g) g.style.display = level === shelfLevel ? "" : "none";
++    });
++
++    container.querySelectorAll<SVGElement>("[data-space-id]").forEach(el => {
++      const externalId = el.getAttribute("data-space-id")!;
++      const type = el.getAttribute("data-type") ?? "";
++      const state = spaceMap.get(externalId);
++
++      let fill: string;
++      if (type === "common_area")       fill = FILL.common;
++      else if (type === "shop")         fill = FILL.shop;
++      else if (!state)                  fill = FILL.unlinked;
++      else if (state.occupantName)      fill = FILL.occupied;
++      else if (type === "storage_unit") fill = FILL.storage;
++      else                              fill = FILL.vacant;
++
++      el.style.fill = fill;
++      el.style.cursor = type === "common_area" ? "default" : "pointer";
++
++      el.onmouseenter = (e) => {
++        if (type === "common_area") return;
++        el.style.fill = "#fef9c3";
++        const rect = (e.target as SVGElement).getBoundingClientRect();
++        const cr = container.getBoundingClientRect();
++        setTooltip({
++          x: rect.left - cr.left + rect.width / 2,
++          y: rect.top - cr.top - 8,
++          externalId,
++          state: state ?? { externalId, name: externalId, blockType: type, resourceId: null, occupantName: null, resourceName: null },
++        });
++      };
++      el.onmouseleave = () => {
++        el.style.fill = fill;
++        setTooltip(null);
++      };
++      el.onclick = () => {
++        if (type === "common_area") return;
++        onSpaceClick?.(externalId, state);
++      };
++    });
++  }, [svgLoaded, spaces, shelfLevel, onSpaceClick]);
++
++  useEffect(() => {
++    applyOverlay();
++  }, [applyOverlay]);
++
++  return (
++    <div className="relative">
++      {hasShelves && (
++        <div className="flex items-center gap-2 mb-2 text-xs text-gray-500">
++          <span>Shelf level:</span>
++          {SHELF_LEVELS.map(l => (
++            <button
++              key={l}
++              onClick={() => setShelfLevel(l)}
++              className={`px-2 py-0.5 rounded border text-xs ${shelfLevel === l ? "bg-gray-800 text-white border-gray-800" : "border-gray-300 hover:border-gray-500"}`}
++            >
++              L{l}
++            </button>
++          ))}
++        </div>
++      )}
++
++      {/* Plain div — innerHTML managed by useEffect only, not React */}
++      <div
++        ref={containerRef}
++        className="border rounded overflow-auto bg-white"
++        style={{ maxHeight: "70vh" }}
++      />
++
++      <div className="flex gap-4 mt-2 text-xs text-gray-500 flex-wrap">
++        {[
++          { color: FILL.vacant,   label: "Vacant (available)" },
++          { color: FILL.occupied, label: "Rented" },
++          { color: FILL.shop,     label: "Shop" },
++          { color: FILL.storage,  label: "Storage (vacant)" },
++          { color: FILL.unlinked, label: "Not synced" },
++        ].map(({ color, label }) => (
++          <span key={label} className="flex items-center gap-1">
++            <span className="inline-block w-3 h-3 rounded-sm border border-gray-300" style={{ background: color }} />
++            {label}
++          </span>
++        ))}
++      </div>
++
++      {tooltip && (
++        <div
++          className="absolute z-10 pointer-events-none bg-white border rounded shadow-md px-3 py-2 text-xs max-w-48"
++          style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
++        >
++          <p className="font-medium">{tooltip.state.resourceName ?? tooltip.externalId}</p>
++          {tooltip.state.occupantName && (
++            <p className="text-gray-500 mt-0.5">{tooltip.state.occupantName}</p>
++          )}
++          {!tooltip.state.resourceId && (
++            <p className="text-amber-600 mt-0.5">Not linked to resource</p>
++          )}
++          <p className="text-gray-400 font-mono mt-0.5">{tooltip.externalId}</p>
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/app/src/components/StudioFloorPlan.tsx b/app/src/components/StudioFloorPlan.tsx
+new file mode 100644
+index 0000000..af7e5db
+--- /dev/null
++++ b/app/src/components/StudioFloorPlan.tsx
+@@ -0,0 +1,80 @@
++"use client";
++
++import { useEffect, useState } from "react";
++import FloorPlanViewer, { type SpaceState } from "@/components/FloorPlanViewer";
++
++interface FloorPlanMeta {
++  id: string;
++  building: string;
++  floor: number;
++}
++
++interface Props {
++  floorPlans: FloorPlanMeta[];
++}
++
++interface LoadedPlan {
++  svgPath: string;
++  spaces: SpaceState[];
++}
++
++export default function StudioFloorPlan({ floorPlans }: Props) {
++  const [open, setOpen] = useState(false);
++  const [activeId, setActiveId] = useState<string>(floorPlans[0]?.id ?? "");
++  const [loaded, setLoaded] = useState<Record<string, LoadedPlan>>({});
++
++  useEffect(() => {
++    if (!open || !activeId) return;
++    fetch(`/api/admin/floorplans/${activeId}`)
++      .then(r => r.ok ? r.json() : Promise.reject())
++      .then(d => setLoaded(prev => ({ ...prev, [activeId]: { svgPath: d.svgPath, spaces: d.spaces } })))
++      .catch(() => {});
++  }, [open, activeId]); // re-fetch every time opened or floor switched
++
++  if (floorPlans.length === 0) return null;
++
++  const plan = loaded[activeId];
++
++  return (
++    <div className="mb-8">
++      <div className="flex items-center gap-3 mb-3">
++        <button
++          onClick={() => setOpen(o => !o)}
++          className="text-sm text-blue-600 hover:underline"
++        >
++          {open ? "Hide floor plan ↑" : "Show floor plan ↓"}
++        </button>
++        {open && floorPlans.length > 1 && (
++          <div className="flex gap-1">
++            {floorPlans.map(fp => (
++              <button
++                key={fp.id}
++                onClick={() => setActiveId(fp.id)}
++                className={`px-2 py-0.5 text-xs rounded border ${activeId === fp.id ? "bg-gray-800 text-white border-gray-800" : "border-gray-300 hover:border-gray-500"}`}
++              >
++                Bldg {fp.building} · F{fp.floor}
++              </button>
++            ))}
++          </div>
++        )}
++      </div>
++
++      {open && (
++        <div className="border rounded">
++          {!plan ? (
++            <div className="h-48 flex items-center justify-center text-sm text-gray-400 animate-pulse">
++              Loading…
++            </div>
++          ) : (
++            <div className="p-3">
++              <FloorPlanViewer
++                svgPath={plan.svgPath}
++                spaces={plan.spaces}
++              />
++            </div>
++          )}
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/app/src/components/StudioImport.tsx b/app/src/components/StudioImport.tsx
+new file mode 100644
+index 0000000..9635fe3
+--- /dev/null
++++ b/app/src/components/StudioImport.tsx
+@@ -0,0 +1,235 @@
++"use client";
++
++import { useRef, useState } from "react";
++import { useRouter } from "next/navigation";
++import { Button } from "@/components/ui/button";
++import { Label } from "@/components/ui/label";
++
++interface Props {
++  unlinkedUnits: string[];
++}
++
++interface PreviewRow {
++  studioName: string;
++  unitIds: string[];
++  assigneeEmail: string;
++  monthlyRate: string;
++  warnings: string[];
++  errors: string[];
++}
++
++function parseCSV(text: string, knownUnits: Set<string>): PreviewRow[] {
++  const lines = text.trim().split("\n").filter(l => l.trim() && !l.trim().startsWith("#"));
++  if (lines.length === 0) return [];
++
++  // Detect header row — only skip if it looks like column labels (contains no space-id pattern)
++  const first = lines[0].toLowerCase();
++  const hasHeader = (first.includes("studio_name") || first.includes("unit_id") || first.includes("assignee"))
++    && !first.match(/studio-\d+/);
++  const dataLines = hasHeader ? lines.slice(1) : lines;
++
++  return dataLines.map(line => {
++    // Handle quoted fields
++    const cols: string[] = [];
++    let cur = "";
++    let inQuote = false;
++    for (const ch of line) {
++      if (ch === '"') { inQuote = !inQuote; }
++      else if (ch === "," && !inQuote) { cols.push(cur.trim()); cur = ""; }
++      else { cur += ch; }
++    }
++    cols.push(cur.trim());
++
++    const [studioName = "", rawUnits = "", assigneeEmail = "", monthlyRate = ""] = cols;
++    const unitIds = rawUnits.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
++    const warnings: string[] = [];
++    const errors: string[] = [];
++
++    if (!studioName) errors.push("Missing studio name");
++    if (unitIds.length === 0) errors.push("No unit IDs");
++
++    for (const uid of unitIds) {
++      if (!knownUnits.has(uid)) warnings.push(`Unit "${uid}" not found in unconfigured units`);
++    }
++
++    if (assigneeEmail && !assigneeEmail.includes("@")) {
++      warnings.push(`"${assigneeEmail}" doesn't look like an email`);
++    }
++
++    if (monthlyRate && isNaN(parseFloat(monthlyRate))) {
++      warnings.push(`Monthly rate "${monthlyRate}" is not a number`);
++    }
++
++    return { studioName, unitIds, assigneeEmail, monthlyRate, warnings, errors };
++  });
++}
++
++export default function StudioImport({ unlinkedUnits }: Props) {
++  const router = useRouter();
++  const fileRef = useRef<HTMLInputElement>(null);
++  const [text, setText] = useState("");
++  const [preview, setPreview] = useState<PreviewRow[] | null>(null);
++  const [status, setStatus] = useState<"idle" | "committing" | "done" | "error">("idle");
++  const [resultMsg, setResultMsg] = useState("");
++
++  const knownUnits = new Set(unlinkedUnits);
++
++  function handlePreview() {
++    const rows = parseCSV(text, knownUnits);
++    setPreview(rows);
++    setStatus("idle");
++    setResultMsg("");
++  }
++
++  async function handleFileLoad(e: React.ChangeEvent<HTMLInputElement>) {
++    const file = e.target.files?.[0];
++    if (!file) return;
++    const content = await file.text();
++    setText(content);
++    const rows = parseCSV(content, knownUnits);
++    setPreview(rows);
++  }
++
++  async function handleCommit() {
++    if (!preview) return;
++    setStatus("committing");
++    try {
++      const res = await fetch("/api/admin/studios/import", {
++        method: "POST",
++        headers: { "Content-Type": "application/json" },
++        body: JSON.stringify({ rows: preview }),
++      });
++      const json = await res.json();
++      if (!res.ok) {
++        setStatus("error");
++        setResultMsg(json.error ?? "Unknown error");
++        return;
++      }
++      setStatus("done");
++      setResultMsg(`Created ${json.created} studios, ${json.assigned} assignments.`);
++      setPreview(null);
++      setText("");
++      router.refresh();
++    } catch (err) {
++      setStatus("error");
++      setResultMsg(String(err));
++    }
++  }
++
++  const hasErrors = preview?.some(r => r.errors.length > 0) ?? false;
++  const validRows  = preview?.filter(r => r.errors.length === 0) ?? [];
++
++  return (
++    <div className="border rounded-md p-4">
++      <h3 className="text-sm font-medium mb-1">Configure studios from CSV</h3>
++      <p className="text-xs text-gray-400 mb-4">
++        Columns: <span className="font-mono">studio_name, unit_ids, assignee_email (optional), monthly_rate (optional)</span>
++        <br />
++        For multiple units, quote the field: <span className="font-mono">"studio-2,studio-3"</span>. Single units need no quotes.
++      </p>
++
++      {/* Available unit IDs hint */}
++      {unlinkedUnits.length > 0 && (
++        <details className="mb-3 text-xs">
++          <summary className="cursor-pointer text-gray-500 hover:text-gray-700">
++            {unlinkedUnits.length} unconfigured unit IDs available
++          </summary>
++          <p className="mt-1 font-mono text-gray-400 leading-relaxed break-all">
++            {unlinkedUnits.join(", ")}
++          </p>
++        </details>
++      )}
++
++      {/* File upload */}
++      <div className="mb-3">
++        <Label className="text-xs text-gray-500">Upload CSV file</Label>
++        <input
++          ref={fileRef}
++          type="file"
++          accept=".csv,.txt"
++          onChange={handleFileLoad}
++          className="block mt-1 w-full text-sm text-gray-600 file:mr-3 file:py-1 file:px-3 file:rounded file:border file:border-gray-300 file:text-xs file:bg-white file:hover:bg-gray-50 cursor-pointer"
++        />
++      </div>
++
++      {/* Paste area */}
++      <div className="mb-3">
++        <Label className="text-xs text-gray-500">Or paste CSV</Label>
++        <textarea
++          value={text}
++          onChange={e => { setText(e.target.value); setPreview(null); }}
++          placeholder={"studio_name,unit_ids,assignee_email,monthly_rate\nStudio 101,studio-1,,75\nStudio 102,\"studio-2,studio-3\",member@example.com,75"}
++          rows={6}
++          className="mt-1 block w-full border rounded px-3 py-2 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-gray-400 resize-y"
++        />
++      </div>
++
++      <Button size="sm" variant="outline" onClick={handlePreview} disabled={!text.trim()}>
++        Preview
++      </Button>
++
++      {/* Preview table */}
++      {preview && preview.length > 0 && (
++        <div className="mt-4">
++          <div className="rounded-md border overflow-hidden mb-3">
++            <table className="w-full text-xs">
++              <thead>
++                <tr className="bg-gray-50 border-b text-left text-gray-500 uppercase tracking-wide">
++                  <th className="px-3 py-2">Studio</th>
++                  <th className="px-3 py-2">Units</th>
++                  <th className="px-3 py-2">Assignee</th>
++                  <th className="px-3 py-2">Rate</th>
++                  <th className="px-3 py-2">Status</th>
++                </tr>
++              </thead>
++              <tbody>
++                {preview.map((row, i) => (
++                  <tr key={i} className={`border-b ${row.errors.length > 0 ? "bg-red-50" : row.warnings.length > 0 ? "bg-yellow-50" : ""}`}>
++                    <td className="px-3 py-2 font-medium">{row.studioName || <span className="text-red-500">—</span>}</td>
++                    <td className="px-3 py-2 font-mono">{row.unitIds.join(", ") || <span className="text-red-500">—</span>}</td>
++                    <td className="px-3 py-2 text-gray-500">{row.assigneeEmail || "—"}</td>
++                    <td className="px-3 py-2 text-gray-500">{row.monthlyRate ? `$${row.monthlyRate}` : "—"}</td>
++                    <td className="px-3 py-2">
++                      {row.errors.map((e, j) => (
++                        <div key={j} className="text-red-600">{e}</div>
++                      ))}
++                      {row.warnings.map((w, j) => (
++                        <div key={j} className="text-yellow-700">{w}</div>
++                      ))}
++                      {row.errors.length === 0 && row.warnings.length === 0 && (
++                        <span className="text-green-600">OK</span>
++                      )}
++                    </td>
++                  </tr>
++                ))}
++              </tbody>
++            </table>
++          </div>
++
++          <div className="flex items-center gap-3">
++            <Button
++              size="sm"
++              onClick={handleCommit}
++              disabled={validRows.length === 0 || status === "committing"}
++            >
++              {status === "committing" ? "Importing…" : `Commit ${validRows.length} row${validRows.length !== 1 ? "s" : ""}`}
++            </Button>
++            {hasErrors && (
++              <span className="text-xs text-red-500">Rows with errors will be skipped.</span>
++            )}
++          </div>
++        </div>
++      )}
++
++      {preview?.length === 0 && (
++        <p className="mt-3 text-xs text-gray-400">No rows parsed — check your format.</p>
++      )}
++
++      {resultMsg && (
++        <p className={`mt-3 text-xs ${status === "error" ? "text-red-600" : "text-green-600"}`}>
++          {resultMsg}
++        </p>
++      )}
++    </div>
++  );
++}
+diff --git a/app/tools/dxf_to_svg.py b/app/tools/dxf_to_svg.py
+index b0e4ee6..0aa35a6 100644
+--- a/app/tools/dxf_to_svg.py
++++ b/app/tools/dxf_to_svg.py
+@@ -44,8 +44,8 @@ LAYER_STUDIO_LABEL = "studio_label"
+ # ── Styling ───────────────────────────────────────────────────────────────────
+ 
+ STYLE_ENVELOPE    = "fill:none;stroke:#333;stroke-width:2"
+-STYLE_SHOP        = "fill:#e8f0fe;stroke:#4a6fa5;stroke-width:1.5"
+-STYLE_STUDIO      = "fill:#d4edda;stroke:#2e7d4f;stroke-width:1"
++STYLE_SHOP        = "fill:#e5e7eb;stroke:#4a6fa5;stroke-width:1.5"
++STYLE_STUDIO      = "fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1"
+ STYLE_LABEL_SHOP  = "font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none"
+ STYLE_LABEL_STUDIO = "font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle"
+ 
+@@ -312,7 +312,7 @@ def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
+             "style": STYLE_STUDIO,
+             "data-space-id": s["space_id"],
+             "data-block": s["block"],
+-            "data-type": "studio",
++            "data-type": "studio_unit",
+         })
+         scx, scy = tx(s["cx"], s["cy"])
+         t = ET.SubElement(g_studios, "text", {

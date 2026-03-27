@@ -39,7 +39,7 @@ export default async function MemberDetailPage({
             include: { equipmentClass: { select: { id: true, name: true } } },
             orderBy: { grantedAt: "desc" },
           },
-          leases: {
+          rentals: {
             where: { deletedAt: null, endDate: null },
             include: { resource: { select: { name: true, typeTag: true } } },
             orderBy: { startDate: "desc" },
@@ -56,7 +56,7 @@ export default async function MemberDetailPage({
         where: {
           typeTag: { in: ["studio", "studio_unit", "storage_unit"] },
           deletedAt: null,
-          leases: { none: { deletedAt: null, endDate: null } },
+          rentals: { none: { deletedAt: null, endDate: null } },
         },
         select: { id: true, name: true, typeTag: true },
         orderBy: { name: "asc" },
@@ -174,32 +174,32 @@ export default async function MemberDetailPage({
     redirect(`/admin/members/${id}`);
   }
 
-  async function addLease(formData: FormData) {
+  async function addRental(formData: FormData) {
     "use server";
     const resourceId  = formData.get("resourceId") as string;
     const startDate   = new Date(formData.get("startDate") as string);
     const monthlyRate = parseFloat(formData.get("monthlyRate") as string);
     if (!resourceId || isNaN(startDate.getTime()) || isNaN(monthlyRate)) return;
-    const lease = await prisma.lease.create({
+    const rental = await prisma.rental.create({
       data: { memberId: id, resourceId, startDate, monthlyRate },
     });
     await audit({
       actorId: session?.user.id ?? null,
-      action: "create", entityType: "Lease", entityId: lease.id,
+      action: "create", entityType: "Rental", entityId: rental.id,
       before: null, after: { memberId: id, resourceId, startDate, monthlyRate },
     });
     redirect(`/admin/members/${id}`);
   }
 
-  async function endLease(formData: FormData) {
+  async function endRental(formData: FormData) {
     "use server";
-    const leaseId = formData.get("leaseId") as string;
+    const rentalId = formData.get("rentalId") as string;
     const endDate = new Date();
-    await prisma.lease.update({ where: { id: leaseId }, data: { endDate } });
+    await prisma.rental.update({ where: { id: rentalId }, data: { endDate } });
     await audit({
       actorId: session?.user.id ?? null,
-      action: "update", entityType: "Lease", entityId: leaseId,
-      before: { endDate: null }, after: { endDate }, note: "Lease ended",
+      action: "update", entityType: "Rental", entityId: rentalId,
+      before: { endDate: null }, after: { endDate }, note: "Rental ended",
     });
     redirect(`/admin/members/${id}`);
   }
@@ -369,14 +369,14 @@ export default async function MemberDetailPage({
         </form>
       </section>
 
-      {/* ── Leases ── */}
+      {/* ── Rentals ── */}
       <section className="mb-8">
-        <h3 className={sectionHead}>Active Leases</h3>
-        {member.leases.length === 0 ? (
-          <p className="text-sm text-gray-400 mb-3">No active leases.</p>
+        <h3 className={sectionHead}>Active Rentals</h3>
+        {member.rentals.length === 0 ? (
+          <p className="text-sm text-gray-400 mb-3">No active rentals.</p>
         ) : (
           <ul className="text-sm border rounded divide-y mb-4">
-            {member.leases.map(l => (
+            {member.rentals.map(l => (
               <li key={l.id} className="flex items-center justify-between px-4 py-2.5">
                 <div>
                   <span className="font-medium">{l.resource.name}</span>
@@ -386,8 +386,8 @@ export default async function MemberDetailPage({
                   <span className="text-gray-500 text-xs">
                     ${Number(l.monthlyRate).toFixed(0)}/mo · since {l.startDate.toLocaleDateString()}
                   </span>
-                  <form action={endLease}>
-                    <input type="hidden" name="leaseId" value={l.id} />
+                  <form action={endRental}>
+                    <input type="hidden" name="rentalId" value={l.id} />
                     <button type="submit" className="text-xs text-red-400 hover:text-red-600">End</button>
                   </form>
                 </div>
@@ -396,7 +396,7 @@ export default async function MemberDetailPage({
           </ul>
         )}
         {availableResources.length > 0 && (
-          <form action={addLease} className="flex flex-wrap gap-2 items-end">
+          <form action={addRental} className="flex flex-wrap gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs text-gray-500">Resource</label>
               <select name="resourceId" required className={selectCls}>
@@ -416,7 +416,7 @@ export default async function MemberDetailPage({
               <label className="text-xs text-gray-500">Monthly rate ($)</label>
               <Input name="monthlyRate" type="number" min="0" step="0.01" placeholder="0.00" required className="h-8 w-28 text-sm" />
             </div>
-            <Button type="submit" size="sm">Add lease</Button>
+            <Button type="submit" size="sm">Add rental</Button>
           </form>
         )}
       </section>
