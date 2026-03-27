@@ -10,6 +10,7 @@ const navLinks = [
   { href: "/admin/storage", label: "Storage" },
   { href: "/admin/equipment", label: "Equipment" },
   { href: "/admin/resources", label: "Resources" },
+  { href: "/admin/floorplans", label: "Floor Plans" },
   { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/reports", label: "Reports" },
   { href: "/admin/audit", label: "Audit" },

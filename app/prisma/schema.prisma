@@ -179,7 +179,7 @@ model Resource {
   parent            Resource?       @relation("ResourceTree", fields: [parentId], references: [id])
   children          Resource[]      @relation("ResourceTree")
   requiresCertClass EquipmentClass? @relation(fields: [requiresCertClassId], references: [id])
-  space             Space?
+  spaces            Space[]
   reservations      Reservation[]
   leases            Lease[]
 }
@@ -273,13 +273,25 @@ model FloorPlan {
   id        String   @id @default(cuid())
   building  String
   floor     Int
-  svgPath   String
+  svgPath   String   // always the current approved SVG path (denormalized from latest revision)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  spaces Space[]
+  spaces    Space[]
+  revisions FloorPlanRevision[]
 
   @@unique([building, floor])
+}
+
+model FloorPlanRevision {
+  id           String   @id @default(cuid())
+  floorPlanId  String
+  svgPath      String
+  note         String?
+  uploadedAt   DateTime @default(now())
+  uploadedById String?  // Member id; null = system/CLI upload
+
+  floorPlan    FloorPlan @relation(fields: [floorPlanId], references: [id])
 }
 
 model Space {
@@ -288,7 +300,7 @@ model Space {
   name        String
   blockType   String
   floorPlanId String
-  resourceId  String?  @unique // nullable for non-bookable common areas
+  resourceId  String?          // nullable for common areas; multiple units can share one Resource (studio grouping)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="410.00" viewBox="0 0 1000 410.00">
+  <g id="envelope">
+    <path d="M0.00,410.00L1000.00,400.00L1000.00,0.00L0.00,0.00L0.00,410.00Z" style="fill:none;stroke:#333;stroke-width:2" />
+  </g>
+  <g id="shops">
+    <polygon points="0.00,0.00 200.00,0.00 200.00,300.00 -0.00,300.00" style="stroke:#4a6fa5;stroke-width:1.5" data-space-id="wood_shop" data-type="shop" />
+    <text x="100.0" y="150.0" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">wood shop</text>
+    <polygon points="488.07,230.26 401.48,230.26 401.48,405.99 488.07,405.12" style="stroke:#4a6fa5;stroke-width:1.5" data-space-id="fabrication_shop" data-type="shop" />
+    <text x="444.8" y="317.9" text-anchor="middle" dominant-baseline="middle" style="font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none">fabrication shop</text>
+  </g>
+  <g id="studios">
+    <polygon points="920.00,400.00 1000.00,400.00 1000.00,340.00 920.00,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-31" data-block="s50-l" data-type="studio_unit" />
+    <text x="960.0" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">31</text>
+    <polygon points="920.00,340.00 1000.00,340.00 1000.00,280.00 920.00,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-26" data-block="s50-l" data-type="studio_unit" />
+    <text x="960.0" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">26</text>
+    <polygon points="920.00,280.00 1000.00,280.00 1000.00,220.00 920.00,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-21" data-block="s50-l" data-type="studio_unit" />
+    <text x="960.0" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">21</text>
+    <polygon points="920.00,220.00 1000.00,220.00 1000.00,160.00 920.00,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-16" data-block="s50-l" data-type="studio_unit" />
+    <text x="960.0" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">16</text>
+    <polygon points="920.00,160.00 1000.00,160.00 1000.00,100.00 920.00,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-11" data-block="s50-l" data-type="studio_unit" />
+    <text x="960.0" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">11</text>
+    <polygon points="940.00,80.00 1000.00,80.00 1000.00,0.00 940.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-6" data-block="s50-p" data-type="studio_unit" />
+    <text x="970.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">6</text>
+    <polygon points="880.00,80.00 940.00,80.00 940.00,0.00 880.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-5" data-block="s50-p" data-type="studio_unit" />
+    <text x="910.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">5</text>
+    <polygon points="820.00,80.00 880.00,80.00 880.00,0.00 820.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-4" data-block="s50-p" data-type="studio_unit" />
+    <text x="850.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">4</text>
+    <polygon points="760.00,80.00 820.00,80.00 820.00,0.00 760.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-3" data-block="s50-p" data-type="studio_unit" />
+    <text x="790.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">3</text>
+    <polygon points="700.00,80.00 760.00,80.00 760.00,0.00 700.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-2" data-block="s50-p" data-type="studio_unit" />
+    <text x="730.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">2</text>
+    <polygon points="640.00,80.00 700.00,80.00 700.00,0.00 640.00,0.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-1" data-block="s50-p" data-type="studio_unit" />
+    <text x="670.0" y="40.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">1</text>
+    <polygon points="798.35,401.22 878.35,401.22 878.35,341.22 798.35,341.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-30" data-block="s50-l" data-type="studio_unit" />
+    <text x="838.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">30</text>
+    <polygon points="798.35,341.22 878.35,341.22 878.35,281.22 798.35,281.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-25" data-block="s50-l" data-type="studio_unit" />
+    <text x="838.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">25</text>
+    <polygon points="798.35,281.22 878.35,281.22 878.35,221.22 798.35,221.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-20" data-block="s50-l" data-type="studio_unit" />
+    <text x="838.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">20</text>
+    <polygon points="798.35,221.22 878.35,221.22 878.35,161.22 798.35,161.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-15" data-block="s50-l" data-type="studio_unit" />
+    <text x="838.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">15</text>
+    <polygon points="798.35,161.22 878.35,161.22 878.35,101.22 798.35,101.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-10" data-block="s50-l" data-type="studio_unit" />
+    <text x="838.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">10</text>
+    <polygon points="718.35,401.22 798.35,401.22 798.35,341.22 718.35,341.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-29" data-block="s50-l" data-type="studio_unit" />
+    <text x="758.4" y="371.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">29</text>
+    <polygon points="718.35,341.22 798.35,341.22 798.35,281.22 718.35,281.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-24" data-block="s50-l" data-type="studio_unit" />
+    <text x="758.4" y="311.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">24</text>
+    <polygon points="718.35,281.22 798.35,281.22 798.35,221.22 718.35,221.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-19" data-block="s50-l" data-type="studio_unit" />
+    <text x="758.4" y="251.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">19</text>
+    <polygon points="718.35,221.22 798.35,221.22 798.35,161.22 718.35,161.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-14" data-block="s50-l" data-type="studio_unit" />
+    <text x="758.4" y="191.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">14</text>
+    <polygon points="718.35,161.22 798.35,161.22 798.35,101.22 718.35,101.22" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-9" data-block="s50-l" data-type="studio_unit" />
+    <text x="758.4" y="131.2" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">9</text>
+    <polygon points="595.71,400.00 675.71,400.00 675.71,340.00 595.71,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-28" data-block="s50-l" data-type="studio_unit" />
+    <text x="635.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">28</text>
+    <polygon points="595.71,340.00 675.71,340.00 675.71,280.00 595.71,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-23" data-block="s50-l" data-type="studio_unit" />
+    <text x="635.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">23</text>
+    <polygon points="595.71,280.00 675.71,280.00 675.71,220.00 595.71,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-18" data-block="s50-l" data-type="studio_unit" />
+    <text x="635.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">18</text>
+    <polygon points="595.71,220.00 675.71,220.00 675.71,160.00 595.71,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-13" data-block="s50-l" data-type="studio_unit" />
+    <text x="635.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">13</text>
+    <polygon points="595.71,160.00 675.71,160.00 675.71,100.00 595.71,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-8" data-block="s50-l" data-type="studio_unit" />
+    <text x="635.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">8</text>
+    <polygon points="515.71,400.00 595.71,400.00 595.71,340.00 515.71,340.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-27" data-block="s50-l" data-type="studio_unit" />
+    <text x="555.7" y="370.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">27</text>
+    <polygon points="515.71,340.00 595.71,340.00 595.71,280.00 515.71,280.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-22" data-block="s50-l" data-type="studio_unit" />
+    <text x="555.7" y="310.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">22</text>
+    <polygon points="515.71,280.00 595.71,280.00 595.71,220.00 515.71,220.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-17" data-block="s50-l" data-type="studio_unit" />
+    <text x="555.7" y="250.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">17</text>
+    <polygon points="515.71,220.00 595.71,220.00 595.71,160.00 515.71,160.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-12" data-block="s50-l" data-type="studio_unit" />
+    <text x="555.7" y="190.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">12</text>
+    <polygon points="515.71,160.00 595.71,160.00 595.71,100.00 515.71,100.00" style="stroke:#2e7d4f;stroke-width:1" data-space-id="studio-7" data-block="s50-l" data-type="studio_unit" />
+    <text x="555.7" y="130.0" style="font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle">7</text>
+  </g>
+</svg>

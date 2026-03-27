@@ -44,8 +44,8 @@ LAYER_STUDIO_LABEL = "studio_label"
 # ── Styling ───────────────────────────────────────────────────────────────────
 
 STYLE_ENVELOPE    = "fill:none;stroke:#333;stroke-width:2"
-STYLE_SHOP        = "fill:#e8f0fe;stroke:#4a6fa5;stroke-width:1.5"
-STYLE_STUDIO      = "fill:#d4edda;stroke:#2e7d4f;stroke-width:1"
+STYLE_SHOP        = "fill:#e5e7eb;stroke:#4a6fa5;stroke-width:1.5"
+STYLE_STUDIO      = "fill:#e5e7eb;stroke:#2e7d4f;stroke-width:1"
 STYLE_LABEL_SHOP  = "font-family:sans-serif;font-size:10px;fill:#333;pointer-events:none"
 STYLE_LABEL_STUDIO = "font-family:sans-serif;font-size:8px;fill:#1a5c32;pointer-events:none;text-anchor:middle;dominant-baseline:middle"
 
@@ -312,7 +312,7 @@ def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
             "style": STYLE_STUDIO,
             "data-space-id": s["space_id"],
             "data-block": s["block"],
-            "data-type": "studio",
+            "data-type": "studio_unit",
         })
         scx, scy = tx(s["cx"], s["cy"])
         t = ET.SubElement(g_studios, "text", {
