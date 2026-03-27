@@ -22,7 +22,11 @@ export default async function RentalsPage() {
         outOfService: false,
         rentals: { none: { deletedAt: null, endDate: null } },
       },
-      select: { id: true, name: true, typeTag: true },
+      select: {
+        id: true, name: true, typeTag: true,
+        // Count child units to compute sq ft (each unit = 50 sq ft)
+        children: { where: { typeTag: "studio_unit", deletedAt: null }, select: { id: true } },
+      },
       orderBy: { name: "asc" },
     }),
     prisma.resource.findMany({
@@ -97,8 +101,19 @@ export default async function RentalsPage() {
     redirect("/portal/rentals");
   }
 
-  const noStudios  = availableStudios.length === 0;
-  const noStorage  = availableStorage.length === 0;
+  const SQ_FT_PER_UNIT = 50;
+
+  // sq ft: for a studio, count its studio_unit children × 50.
+  // For a bare studio_unit (no parent grouping), it's 1 unit.
+  const studioSqFt = (r: typeof availableStudios[0]) => {
+    const units = r.typeTag === "studio" ? r.children.length || 1 : 1;
+    return units * SQ_FT_PER_UNIT;
+  };
+
+  const totalAvailableSqFt = availableStudios.reduce((sum, r) => sum + studioSqFt(r), 0);
+
+  const noStudios = availableStudios.length === 0;
+  const noStorage = availableStorage.length === 0;
 
   return (
     <div className="max-w-2xl">
@@ -166,7 +181,14 @@ export default async function RentalsPage() {
 
         {/* Studio */}
         <div className="mb-4">
-          <p className="text-sm font-medium mb-2">Studio</p>
+          <div className="flex items-baseline gap-3 mb-2">
+            <p className="text-sm font-medium">Studio</p>
+            {!noStudios && (
+              <span className="text-xs text-gray-400">
+                {availableStudios.length} available · {totalAvailableSqFt.toLocaleString()} sq ft total
+              </span>
+            )}
+          </div>
           {noStudios ? (
             <div className="text-sm text-gray-500">
               No studios currently available.{" "}
@@ -177,7 +199,9 @@ export default async function RentalsPage() {
               <select name="resourceId" required className="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400">
                 <option value="">Select studio…</option>
                 {availableStudios.map(r => (
-                  <option key={r.id} value={r.id}>{r.name}</option>
+                  <option key={r.id} value={r.id}>
+                    {r.name} — {studioSqFt(r)} sq ft
+                  </option>
                 ))}
               </select>
               <Button type="submit" size="sm">Request</Button>

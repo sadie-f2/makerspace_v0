@@ -35,6 +35,9 @@ export default async function AdminLayout({
           <span className="text-gray-500">
             {session.user.name} ({session.user.role})
           </span>
+          <Link href="/portal" className="text-xs text-gray-400 hover:text-gray-700 underline">
+            Member portal
+          </Link>
           <form
             action={async () => {
               "use server";
