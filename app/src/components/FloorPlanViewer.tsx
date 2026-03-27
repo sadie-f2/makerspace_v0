@@ -11,112 +11,181 @@ export interface ClickedSpace {
 }
 
 interface Props {
-  /** URL to fetch the SVG from — use /api/admin/floorplans/[id]/svg for state-enriched SVG */
   svgUrl: string;
   onSpaceClick?: (space: ClickedSpace) => void;
-  /** Remove the maxHeight scroll constraint — show the full floor plan */
   unconstrained?: boolean;
-  /** Hide the shelf-level selector even if the SVG has shelf layers */
   hideShelves?: boolean;
+  // Selection mode
+  mode?: "view" | "select";
+  selectedIds?: Set<string>;
+  currentResourceId?: string;
+  onSelectionChange?: (ids: Set<string>) => void;
 }
 
 const SHELF_LEVELS = [1, 2, 3];
 
-// Colours that the server injects — kept here only for the legend.
-const LEGEND = [
-  { color: "#bbf7d0", label: "Vacant (available)" },
+const VIEW_LEGEND = [
+  { color: "#bbf7d0", label: "Vacant" },
   { color: "#bfdbfe", label: "Rented" },
   { color: "#dbeafe", label: "Shop" },
-  { color: "#fde8d8", label: "Storage (vacant)" },
+  { color: "#fde8d8", label: "Storage" },
   { color: "#e5e7eb", label: "Not synced" },
 ];
 
-export default function FloorPlanViewer({ svgUrl, onSpaceClick, unconstrained, hideShelves }: Props) {
+const SELECT_LEGEND = [
+  { color: "#f3f4f6", label: "Available" },
+  { color: "#fef08a", label: "Selected" },
+  { color: "#9ca3af", label: "Assigned elsewhere" },
+];
+
+const SELECT_STYLE = [
+  `[data-type="studio_unit"] { fill: #f3f4f6 !important; }`,
+  `.selected { fill: #fef08a !important; }`,
+  `.locked   { fill: #9ca3af !important; cursor: not-allowed; }`,
+  `.hovered:not(.locked) { fill: #fef9c3 !important; }`,
+].join("\n");
+
+export default function FloorPlanViewer({
+  svgUrl,
+  onSpaceClick,
+  unconstrained,
+  hideShelves,
+  mode = "view",
+  selectedIds,
+  currentResourceId,
+  onSelectionChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [svgLoaded, setSvgLoaded] = useState(false);
   const [shelfLevel, setShelfLevel] = useState(1);
   const [hasShelves, setHasShelves] = useState(false);
   const [tooltip, setTooltip] = useState<{
-    x: number;
-    y: number;
-    space: ClickedSpace;
+    x: number; y: number; space: ClickedSpace;
   } | null>(null);
 
-  // Inject SVG via ref so React never touches the container after initial load.
+  // Load SVG + inject select-mode override style
   useEffect(() => {
     if (!svgUrl) return;
     setSvgLoaded(false);
     setTooltip(null);
-    fetch(svgUrl)
+    const controller = new AbortController();
+    fetch(svgUrl, { signal: controller.signal })
       .then(r => r.text())
       .then(html => {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = html;
-          setHasShelves(html.includes("shelf_l"));
-          setSvgLoaded(true);
+        if (!containerRef.current) return;
+        containerRef.current.innerHTML = html;
+        setHasShelves(html.includes("shelf_l"));
+        if (mode === "select") {
+          const svgEl = containerRef.current.querySelector("svg");
+          if (svgEl) {
+            const style = document.createElement("style");
+            style.textContent = SELECT_STYLE;
+            svgEl.appendChild(style);
+          }
         }
+        setSvgLoaded(true);
       })
-      .catch(() => {});
-  }, [svgUrl]);
+      .catch(err => { if (err.name !== "AbortError") console.error("SVG load failed:", err); });
+    return () => controller.abort();
+  }, [svgUrl, mode]);
 
+  // Attach event handlers
   const applyHandlers = useCallback(() => {
     const container = containerRef.current;
     if (!container || !svgLoaded) return;
 
-    // Shelf visibility
     SHELF_LEVELS.forEach(level => {
       const g = container.querySelector(`#shelf_l${level}`) as HTMLElement | null;
       if (g) g.style.display = level === shelfLevel ? "" : "none";
     });
 
-    // Attach event handlers — fills are already in the SVG via server-injected <style>
     container.querySelectorAll<SVGElement>("[data-space-id]").forEach(el => {
-      const externalId = el.getAttribute("data-space-id")!;
-      const type       = el.getAttribute("data-type") ?? "";
-      const resourceId = el.getAttribute("data-resource-id") ?? null;
+      const externalId  = el.getAttribute("data-space-id")!;
+      const type        = el.getAttribute("data-type") ?? "";
+      const resourceId  = el.getAttribute("data-resource-id") ?? null;
       const resourceName = el.getAttribute("data-resource-name") ?? null;
       const occupantName = el.getAttribute("data-occupant") ?? null;
 
-      el.style.cursor = type === "common_area" ? "default" : "pointer";
+      if (mode === "select") {
+        if (type !== "studio_unit") { el.style.cursor = "default"; return; }
+        const isLocked = !!resourceId && resourceId !== currentResourceId;
+        el.style.cursor = isLocked ? "not-allowed" : "pointer";
 
-      el.onmouseenter = (e) => {
-        if (type === "common_area") return;
-        // Highlight all units sharing the same resource (multi-unit studios)
-        const peers = resourceId
-          ? container.querySelectorAll<SVGElement>(`[data-resource-id="${resourceId}"]`)
-          : [el];
-        peers.forEach(p => p.classList.add("hovered"));
-        const rect = (e.target as SVGElement).getBoundingClientRect();
-        const cr = container.getBoundingClientRect();
-        setTooltip({
-          x: rect.left - cr.left + rect.width / 2,
-          y: rect.top - cr.top - 8,
-          space: { externalId, type, resourceId, resourceName, occupantName },
-        });
-      };
-
-      el.onmouseleave = () => {
-        const peers = resourceId
-          ? container.querySelectorAll<SVGElement>(`[data-resource-id="${resourceId}"]`)
-          : [el];
-        peers.forEach(p => p.classList.remove("hovered"));
-        setTooltip(null);
-      };
-
-      el.onclick = () => {
-        if (type === "common_area") return;
-        onSpaceClick?.({ externalId, type, resourceId, resourceName, occupantName });
-      };
+        el.onmouseenter = (e) => {
+          if (isLocked) return;
+          el.classList.add("hovered");
+          const rect = (e.target as SVGElement).getBoundingClientRect();
+          const cr = container.getBoundingClientRect();
+          setTooltip({
+            x: rect.left - cr.left + rect.width / 2,
+            y: rect.top - cr.top - 8,
+            space: { externalId, type, resourceId, resourceName, occupantName },
+          });
+        };
+        el.onmouseleave = () => {
+          el.classList.remove("hovered");
+          setTooltip(null);
+        };
+        el.onclick = () => {
+          if (isLocked || !onSelectionChange) return;
+          const next = new Set(selectedIds ?? []);
+          if (next.has(externalId)) next.delete(externalId);
+          else next.add(externalId);
+          onSelectionChange(next);
+        };
+      } else {
+        // view mode (existing behaviour)
+        el.style.cursor = type === "common_area" ? "default" : "pointer";
+        el.onmouseenter = (e) => {
+          if (type === "common_area") return;
+          const peers = resourceId
+            ? container.querySelectorAll<SVGElement>(`[data-resource-id="${resourceId}"]`)
+            : [el];
+          peers.forEach(p => p.classList.add("hovered"));
+          const rect = (e.target as SVGElement).getBoundingClientRect();
+          const cr = container.getBoundingClientRect();
+          setTooltip({
+            x: rect.left - cr.left + rect.width / 2,
+            y: rect.top - cr.top - 8,
+            space: { externalId, type, resourceId, resourceName, occupantName },
+          });
+        };
+        el.onmouseleave = () => {
+          const peers = resourceId
+            ? container.querySelectorAll<SVGElement>(`[data-resource-id="${resourceId}"]`)
+            : [el];
+          peers.forEach(p => p.classList.remove("hovered"));
+          setTooltip(null);
+        };
+        el.onclick = () => {
+          if (type === "common_area") return;
+          onSpaceClick?.({ externalId, type, resourceId, resourceName, occupantName });
+        };
+      }
     });
-  }, [svgLoaded, shelfLevel, onSpaceClick]);
+  }, [svgLoaded, shelfLevel, mode, onSpaceClick, onSelectionChange, currentResourceId, selectedIds]);
 
+  useEffect(() => { applyHandlers(); }, [applyHandlers]);
+
+  // Sync .selected / .locked CSS classes when selectedIds changes (select mode)
   useEffect(() => {
-    applyHandlers();
-  }, [applyHandlers]);
+    if (!svgLoaded || mode !== "select") return;
+    const container = containerRef.current;
+    if (!container) return;
+    container.querySelectorAll<SVGElement>("[data-space-id]").forEach(el => {
+      const externalId = el.getAttribute("data-space-id")!;
+      const resourceId = el.getAttribute("data-resource-id") ?? null;
+      const isLocked   = !!resourceId && resourceId !== currentResourceId;
+      el.classList.toggle("selected", !isLocked && (selectedIds?.has(externalId) ?? false));
+      el.classList.toggle("locked", isLocked);
+    });
+  }, [svgLoaded, mode, selectedIds, currentResourceId]);
+
+  const legend = mode === "select" ? SELECT_LEGEND : VIEW_LEGEND;
 
   return (
     <div className="relative">
-      {hasShelves && !hideShelves && (
+      {hasShelves && !hideShelves && mode === "view" && (
         <div className="flex items-center gap-2 mb-2 text-xs text-gray-500">
           <span>Shelf level:</span>
           {SHELF_LEVELS.map(l => (
@@ -131,7 +200,6 @@ export default function FloorPlanViewer({ svgUrl, onSpaceClick, unconstrained, h
         </div>
       )}
 
-      {/* Plain div — innerHTML managed by useEffect only */}
       <div
         ref={containerRef}
         className={`border rounded bg-white ${unconstrained ? "" : "overflow-auto"}`}
@@ -139,7 +207,7 @@ export default function FloorPlanViewer({ svgUrl, onSpaceClick, unconstrained, h
       />
 
       <div className="flex gap-4 mt-2 text-xs text-gray-500 flex-wrap">
-        {LEGEND.map(({ color, label }) => (
+        {legend.map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm border border-gray-300" style={{ background: color }} />
             {label}
@@ -153,10 +221,8 @@ export default function FloorPlanViewer({ svgUrl, onSpaceClick, unconstrained, h
           style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
         >
           <p className="font-medium">{tooltip.space.resourceName ?? tooltip.space.externalId}</p>
-          {tooltip.space.occupantName && (
-            <p className="text-gray-500 mt-0.5">{tooltip.space.occupantName}</p>
-          )}
-          {!tooltip.space.resourceId && (
+          {tooltip.space.occupantName && <p className="text-gray-500 mt-0.5">{tooltip.space.occupantName}</p>}
+          {mode === "view" && !tooltip.space.resourceId && (
             <p className="text-amber-600 mt-0.5">Not linked to resource</p>
           )}
           <p className="text-gray-400 font-mono mt-0.5">{tooltip.space.externalId}</p>

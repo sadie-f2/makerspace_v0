@@ -266,6 +266,18 @@ model SpaceTypeConfig {
 }
 
 // ---------------------------------------------------------------------------
+// Studio assembly sizes (allowed unit counts — configurable by admin)
+// ---------------------------------------------------------------------------
+
+model StudioSize {
+  id        String   @id @default(cuid())
+  unitCount Int      @unique
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+// ---------------------------------------------------------------------------
 // Floor plans & spaces
 // ---------------------------------------------------------------------------
 
@@ -287,6 +299,7 @@ model FloorPlanRevision {
   id           String   @id @default(cuid())
   floorPlanId  String
   svgPath      String
+  dxfData      Bytes?   // DXF file bytes — DB is authoritative source for re-export
   note         String?
   uploadedAt   DateTime @default(now())
   uploadedById String?  // Member id; null = system/CLI upload

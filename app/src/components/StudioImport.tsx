@@ -4,65 +4,13 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { parseStudioCSV, type ParsedStudioRow } from "@/lib/parseStudioCSV";
 
 interface Props {
   unlinkedUnits: string[];
 }
 
-interface PreviewRow {
-  studioName: string;
-  unitIds: string[];
-  assigneeEmail: string;
-  monthlyRate: string;
-  warnings: string[];
-  errors: string[];
-}
-
-function parseCSV(text: string, knownUnits: Set<string>): PreviewRow[] {
-  const lines = text.trim().split("\n").filter(l => l.trim() && !l.trim().startsWith("#"));
-  if (lines.length === 0) return [];
-
-  // Detect header row — only skip if it looks like column labels (contains no space-id pattern)
-  const first = lines[0].toLowerCase();
-  const hasHeader = (first.includes("studio_name") || first.includes("unit_id") || first.includes("assignee"))
-    && !first.match(/studio-\d+/);
-  const dataLines = hasHeader ? lines.slice(1) : lines;
-
-  return dataLines.map(line => {
-    // Handle quoted fields
-    const cols: string[] = [];
-    let cur = "";
-    let inQuote = false;
-    for (const ch of line) {
-      if (ch === '"') { inQuote = !inQuote; }
-      else if (ch === "," && !inQuote) { cols.push(cur.trim()); cur = ""; }
-      else { cur += ch; }
-    }
-    cols.push(cur.trim());
-
-    const [studioName = "", rawUnits = "", assigneeEmail = "", monthlyRate = ""] = cols;
-    const unitIds = rawUnits.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
-    const warnings: string[] = [];
-    const errors: string[] = [];
-
-    if (!studioName) errors.push("Missing studio name");
-    if (unitIds.length === 0) errors.push("No unit IDs");
-
-    for (const uid of unitIds) {
-      if (!knownUnits.has(uid)) warnings.push(`Unit "${uid}" not found in unconfigured units`);
-    }
-
-    if (assigneeEmail && !assigneeEmail.includes("@")) {
-      warnings.push(`"${assigneeEmail}" doesn't look like an email`);
-    }
-
-    if (monthlyRate && isNaN(parseFloat(monthlyRate))) {
-      warnings.push(`Monthly rate "${monthlyRate}" is not a number`);
-    }
-
-    return { studioName, unitIds, assigneeEmail, monthlyRate, warnings, errors };
-  });
-}
+type PreviewRow = ParsedStudioRow;
 
 export default function StudioImport({ unlinkedUnits }: Props) {
   const router = useRouter();
@@ -75,7 +23,7 @@ export default function StudioImport({ unlinkedUnits }: Props) {
   const knownUnits = new Set(unlinkedUnits);
 
   function handlePreview() {
-    const rows = parseCSV(text, knownUnits);
+    const rows = parseStudioCSV(text, knownUnits);
     setPreview(rows);
     setStatus("idle");
     setResultMsg("");
@@ -86,7 +34,7 @@ export default function StudioImport({ unlinkedUnits }: Props) {
     if (!file) return;
     const content = await file.text();
     setText(content);
-    const rows = parseCSV(content, knownUnits);
+    const rows = parseStudioCSV(content, knownUnits);
     setPreview(rows);
   }
 

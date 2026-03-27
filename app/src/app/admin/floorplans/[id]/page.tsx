@@ -94,6 +94,13 @@ export default function FloorPlanDetailPage() {
               ← Back to current
             </button>
           )}
+          <Link
+            href={`/admin/floorplans?skipMarkerFor=${id}`}
+            className="px-3 py-1.5 text-xs border rounded hover:bg-gray-50 text-amber-700 border-amber-300"
+            title="Upload a revision without provenance marker check — use only for bootstrapping pre-marker DXFs"
+          >
+            Re-upload (skip marker)
+          </Link>
           <button
             onClick={handleSync}
             disabled={syncing || isHistorical}
@@ -199,8 +206,16 @@ export default function FloorPlanDetailPage() {
                         <p className="truncate">{rev.note ?? `Revision ${data.revisions.length - i}`}</p>
                         <p className="text-gray-400">{new Date(rev.uploadedAt).toLocaleDateString()}</p>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0">
+                      <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                         {i === 0 && <Badge variant="outline" className="text-xs py-0">current</Badge>}
+                        <a
+                          href={`/api/admin/floorplans/${id}/revisions/${rev.id}/dxf`}
+                          download
+                          className="text-blue-500 hover:underline"
+                          title="Download labeled DXF"
+                        >
+                          dxf
+                        </a>
                         {!isCurrent && (
                           <button
                             onClick={() => i === 0 ? switchToCurrent() : switchRevision(rev)}

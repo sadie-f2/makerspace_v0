@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
+import { parseSpacesFromSvg } from "@/lib/parseSpacesFromSvg";
 import { readFile } from "fs/promises";
 import path from "path";
 
@@ -18,13 +19,7 @@ export async function syncFloorPlan(floorPlanId: string): Promise<SyncResult> {
 
   const svgFile = path.join(process.cwd(), "public", fp.svgPath);
   const svgText = await readFile(svgFile, "utf-8");
-
-  const spaceRegex = /data-space-id="([^"]+)"[^>]*data-type="([^"]+)"/g;
-  const found = new Map<string, string>();
-  let m: RegExpExecArray | null;
-  while ((m = spaceRegex.exec(svgText)) !== null) {
-    found.set(m[1], m[2]);
-  }
+  const found   = parseSpacesFromSvg(svgText);
 
   const results: SyncResult = { created: 0, existing: 0, total: found.size };
 

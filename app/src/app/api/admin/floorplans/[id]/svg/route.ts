@@ -97,7 +97,7 @@ export async function GET(
   return new Response(svg, {
     headers: {
       "Content-Type": "image/svg+xml",
-      "Cache-Control": "no-store",
+      "Cache-Control": "private, no-cache",
     },
   });
 }

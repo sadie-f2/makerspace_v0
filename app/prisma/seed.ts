@@ -30,6 +30,18 @@ async function main() {
   });
 
   // ---------------------------------------------------------------------------
+  // Studio sizes (allowed unit counts for studio assembly)
+  // ---------------------------------------------------------------------------
+  for (const [unitCount, sortOrder] of [[1, 0], [2, 1], [4, 2]] as const) {
+    await prisma.studioSize.upsert({
+      where: { unitCount },
+      update: {},
+      create: { unitCount, sortOrder },
+    });
+  }
+  console.log("Seeded studio sizes: 1, 2, 4");
+
+  // ---------------------------------------------------------------------------
   // Space type configuration
   // ---------------------------------------------------------------------------
   // Top-level types first (no parent)

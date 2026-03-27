@@ -4,13 +4,17 @@ dxf_to_svg.py — convert a makerspace DXF floor plan to an interactive SVG.
 
 Usage:
     python tools/dxf_to_svg.py --input drawing.dxf --output public/floorplans/building.svg
-    python tools/dxf_to_svg.py --input drawing.dxf --output out.svg --output-dxf labeled.dxf --width 1200
+    python tools/dxf_to_svg.py --input drawing.dxf --output out.svg --output-dxf labeled.dxf --marker fpid.revid
+
+    # Read the provenance marker from a DXF (for upload validation):
+    python tools/dxf_to_svg.py --read-marker --input labeled.dxf
 
 Layer conventions expected in the DXF:
     0            — building envelope (LINE entities)
     studio       — studio unit block INSERTs (blocks: s50-l, s50-p)
     shop         — closed LWPOLYLINE perimeters of shop areas
     shop_label   — TEXT entities inside each shop (value = shop space_id, e.g. "wood_shop")
+    fp_marker    — provenance TEXT entity written by --output-dxf (do not edit)
 
 Studio numbering:
     Studios are numbered 1–N ordered west→east (X ascending) then north→south (Y descending).
@@ -19,6 +23,8 @@ Studio numbering:
 DXF label output (--output-dxf):
     Writes a copy of the input DXF with TEXT entities added on layer "studio_label",
     one per studio, placed at the unit centroid, containing its assigned number.
+    Also writes a provenance marker (fpid.revid) on layer "fp_marker" near the
+    top-left corner of the envelope — used to validate revision uploads.
 """
 
 import sys
@@ -40,6 +46,7 @@ LAYER_STUDIO      = "studio"
 LAYER_SHOP        = "shop"
 LAYER_SHOP_LABEL  = "shop_label"
 LAYER_STUDIO_LABEL = "studio_label"
+LAYER_FP_MARKER   = "fp_marker"
 
 # ── Styling ───────────────────────────────────────────────────────────────────
 
@@ -164,9 +171,44 @@ def resolve_studio_corners(insert):
     return corners
 
 
+# ── Marker helpers ────────────────────────────────────────────────────────────
+
+def read_marker(dxf_path):
+    """
+    Read the provenance marker from a DXF file.
+    Returns the marker string (e.g. "fpid.revid") or None if not present.
+    """
+    doc = ezdxf.readfile(dxf_path)
+    msp = doc.modelspace()
+    for e in msp:
+        if e.dxftype() == "TEXT" and e.dxf.layer == LAYER_FP_MARKER:
+            val = e.dxf.text.strip()
+            if val:
+                return val
+    return None
+
+
+def write_marker(msp, doc, marker_text, min_x, max_y):
+    """
+    Write provenance marker TEXT entity on LAYER_FP_MARKER, just inside
+    the top-left corner of the envelope (min_x + 0.5, max_y - 1.0).
+    Not rendered in SVG — DXF only.
+    """
+    if LAYER_FP_MARKER not in doc.layers:
+        doc.layers.add(LAYER_FP_MARKER, color=9)  # grey, won't plot
+    msp.add_text(
+        marker_text,
+        dxfattribs={
+            "layer": LAYER_FP_MARKER,
+            "insert": (min_x + 0.5, max_y - 1.0),
+            "height": 0.5,
+        },
+    )
+
+
 # ── Core conversion ───────────────────────────────────────────────────────────
 
-def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
+def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000, marker=None):
     doc = ezdxf.readfile(dxf_path)
     msp = doc.modelspace()
 
@@ -248,14 +290,14 @@ def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
     new_count = len(new_studios)
     existing_count = len(studios) - new_count
 
-    # ── 3. Shop labels ─────────────────────────────────────────────────────
+    # ── 4. Shop labels ─────────────────────────────────────────────────────
     shop_labels = []
     for e in msp:
         if e.dxftype() in ("TEXT", "MTEXT") and e.dxf.layer == LAYER_SHOP_LABEL:
             val = (e.dxf.text if e.dxftype() == "TEXT" else e.text).strip()
             shop_labels.append((val, pt2(e.dxf.insert)))
 
-    # ── 4. Build SVG ───────────────────────────────────────────────────────
+    # ── 5. Build SVG ───────────────────────────────────────────────────────
     svg = ET.Element("svg", {
         "xmlns": "http://www.w3.org/2000/svg",
         "width": str(target_width),
@@ -333,7 +375,7 @@ def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
     print(f"  Shops    : {len(shops_found)} — {', '.join(shops_found)}")
     print(f"  Studios  : {len(studios)} ({existing_count} existing, {new_count} new)")
 
-    # ── 5. Labeled DXF output ──────────────────────────────────────────────
+    # ── 6. Labeled DXF output ──────────────────────────────────────────────
     if dxf_out_path:
         # Add studio_label layer if it doesn't exist
         if LAYER_STUDIO_LABEL not in doc.layers:
@@ -353,18 +395,35 @@ def convert(dxf_path, svg_path, dxf_out_path=None, target_width=1000):
                 },
             )
 
+        # Write provenance marker if supplied
+        if marker:
+            write_marker(msp, doc, marker, min_x, max_y)
+
         doc.saveas(dxf_out_path)
-        print(f"Wrote {dxf_out_path} (+{new_count} new labels on layer '{LAYER_STUDIO_LABEL}')")
+        marker_note = f", marker={marker}" if marker else ""
+        print(f"Wrote {dxf_out_path} (+{new_count} new labels on layer '{LAYER_STUDIO_LABEL}'{marker_note})")
 
 
 def main():
     parser = argparse.ArgumentParser(description="Convert DXF floor plan to SVG")
-    parser.add_argument("--input",      required=True,  help="Input .dxf file")
-    parser.add_argument("--output",     required=True,  help="Output .svg file")
-    parser.add_argument("--output-dxf", default=None,   help="Output labeled .dxf file (optional)")
-    parser.add_argument("--width",      type=int, default=1000, help="SVG width px (default 1000)")
+    parser.add_argument("--input",       required=True,  help="Input .dxf file")
+    parser.add_argument("--output",      default=None,   help="Output .svg file (required unless --read-marker)")
+    parser.add_argument("--output-dxf",  default=None,   help="Output labeled .dxf file (optional)")
+    parser.add_argument("--marker",      default=None,   help="Provenance marker to embed in --output-dxf (format: fpid.revid)")
+    parser.add_argument("--width",       type=int, default=1000, help="SVG width px (default 1000)")
+    parser.add_argument("--read-marker", action="store_true",    help="Read and print provenance marker from input DXF, then exit")
     args = parser.parse_args()
-    convert(args.input, args.output, dxf_out_path=args.output_dxf, target_width=args.width)
+
+    if args.read_marker:
+        marker = read_marker(args.input)
+        print(marker if marker else "NONE")
+        return
+
+    if not args.output:
+        parser.error("--output is required unless --read-marker is set")
+
+    convert(args.input, args.output, dxf_out_path=args.output_dxf,
+            target_width=args.width, marker=args.marker)
 
 
 if __name__ == "__main__":

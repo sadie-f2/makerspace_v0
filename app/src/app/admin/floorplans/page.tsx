@@ -4,10 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import FloorPlanUpload from "@/components/FloorPlanUpload";
 
-export default async function FloorPlansPage() {
+export default async function FloorPlansPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ skipMarkerFor?: string }>;
+}) {
+  const { skipMarkerFor } = await searchParams;
   const floorPlans = await prisma.floorPlan.findMany({
     orderBy: [{ building: "asc" }, { floor: "asc" }],
-    include: { _count: { select: { spaces: true } } },
+    include: {
+      _count: { select: { spaces: true } },
+      revisions: { orderBy: { uploadedAt: "desc" }, take: 1, select: { id: true, uploadedAt: true } },
+    },
   });
 
   return (
@@ -24,7 +32,13 @@ export default async function FloorPlansPage() {
             <div key={fp.id} className="flex items-center justify-between px-4 py-3">
               <div>
                 <span className="font-medium text-sm">Building {fp.building} — Floor {fp.floor}</span>
-                <span className="ml-3 text-xs text-gray-400 font-mono">{fp.svgPath}</span>
+                {fp.revisions[0] && (
+                  <span className="ml-3 text-xs text-gray-400">
+                    {fp.revisions.length > 0
+                      ? `${fp._count.spaces} spaces · last revised ${new Date(fp.revisions[0].uploadedAt).toLocaleDateString()}`
+                      : `${fp._count.spaces} spaces`}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-3">
                 <Badge variant="outline">{fp._count.spaces} spaces</Badge>
@@ -37,7 +51,14 @@ export default async function FloorPlansPage() {
         </div>
       )}
 
-      <FloorPlanUpload />
+      <FloorPlanUpload
+        existingFloorPlans={floorPlans.map(fp => ({
+          id:       fp.id,
+          building: fp.building,
+          floor:    fp.floor,
+        }))}
+        bypassMarkerForId={skipMarkerFor}
+      />
     </div>
   );
 }
