@@ -1,30 +1,19 @@
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
 
+// proxy.ts (Next.js 16) — runs on Node.js runtime, so auth/Prisma imports are safe.
 export async function proxy(req: NextRequest) {
   const session = await auth();
-  const { pathname } = req.nextUrl;
 
-  const isAdminRoute = pathname.startsWith("/admin");
-  const isPortalRoute = pathname.startsWith("/portal");
-
-  if ((isAdminRoute || isPortalRoute) && !session) {
-    const loginUrl = new URL("/login", req.nextUrl.origin);
-    loginUrl.searchParams.set("callbackUrl", pathname);
+  if (!session?.user) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  if (isAdminRoute && session) {
-    const role = session.user.role;
-    if (role !== "ADMIN" && role !== "STAFF") {
-      return NextResponse.redirect(new URL("/portal", req.nextUrl.origin));
-    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/portal/:path*"],
+  matcher: ["/portal/:path*", "/admin/:path*"],
 };
