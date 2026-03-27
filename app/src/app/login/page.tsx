@@ -73,6 +73,10 @@ export default function LoginPage({
               Sign in
             </Button>
           </form>
+          <p className="text-center text-sm text-gray-500 mt-4">
+            No account?{" "}
+            <a href="/register" className="underline">Create one</a>
+          </p>
         </CardContent>
       </Card>
     </div>

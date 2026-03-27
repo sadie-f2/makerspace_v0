@@ -4,11 +4,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 const navLinks = [
-  { href: "/portal", label: "Home" },
-  { href: "/portal/bookings", label: "My Bookings" },
-  { href: "/portal/book", label: "Book Equipment" },
-  { href: "/portal/studio", label: "My Studio" },
-  { href: "/portal/certifications", label: "Certifications" },
+  { href: "/portal",                  label: "Home" },
+  { href: "/portal/profile",          label: "Profile" },
+  { href: "/portal/rentals",          label: "Rentals" },
+  { href: "/portal/waitlist",         label: "Waitlist" },
+  { href: "/portal/certifications",   label: "Certifications" },
+  { href: "/portal/map",              label: "Map" },
+  { href: "/portal/day-pass",         label: "Day Pass" },
 ];
 
 export default async function PortalLayout({
@@ -20,37 +22,43 @@ export default async function PortalLayout({
   if (!session) redirect("/login");
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <span className="font-semibold text-sm">Artisans Asylum</span>
-          <nav className="flex gap-1">
-            {navLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-100"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+    <div className="min-h-screen flex flex-col h-screen">
+      <header className="bg-white border-b px-6 py-3 flex items-center justify-between shrink-0">
+        <span className="font-semibold text-sm">Artisans Asylum</span>
         <div className="flex items-center gap-4 text-sm">
           <span className="text-gray-500">{session.user.name}</span>
+          {(session.user.role === "STAFF" || session.user.role === "ADMIN") && (
+            <Link href="/admin" className="text-xs text-gray-400 hover:text-gray-700 underline">
+              Admin
+            </Link>
+          )}
           <form
             action={async () => {
               "use server";
               await signOut({ redirectTo: "/login" });
             }}
           >
-            <Button variant="outline" size="sm" type="submit">
-              Sign out
-            </Button>
+            <Button variant="outline" size="sm" type="submit">Sign out</Button>
           </form>
         </div>
       </header>
-      <main className="flex-1 p-6 bg-gray-50">{children}</main>
+      <div className="flex flex-1 overflow-hidden">
+        <nav className="w-44 bg-gray-50 border-r px-3 py-4 shrink-0">
+          <ul className="space-y-1">
+            {navLinks.map(({ href, label }) => (
+              <li key={href}>
+                <Link
+                  href={href}
+                  className="block px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200"
+                >
+                  {label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+        <main className="flex-1 overflow-auto p-6 bg-white">{children}</main>
+      </div>
     </div>
   );
 }

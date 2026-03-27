@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
@@ -18,8 +19,10 @@ const STAFF_ASSIGNABLE: ValidRole[] = ["MEMBER", "VOLUNTEER"];
 
 export default async function MemberDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: { pwreset?: string };
 }) {
   const { id } = await params;
   const session = await auth();
@@ -139,6 +142,20 @@ export default async function MemberDetailPage({
     "use server";
     await sendWelcomeMail({ name: member!.name, email: member!.email });
     redirect(`/admin/members/${id}`);
+  }
+
+  async function resetPassword(formData: FormData) {
+    "use server";
+    const newPassword = (formData.get("newPassword") as string).trim();
+    if (newPassword.length < 8) return;
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await prisma.member.update({ where: { id }, data: { passwordHash } });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update", entityType: "Member", entityId: id,
+      before: null, after: null, note: "Password reset by staff",
+    });
+    redirect(`/admin/members/${id}?pwreset=1`);
   }
 
   async function grantPermission(formData: FormData) {
@@ -269,9 +286,11 @@ export default async function MemberDetailPage({
 
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-lg font-semibold">{member.name}</h2>
-        <form action={sendWelcome}>
-          <Button type="submit" size="sm" variant="outline">Send welcome email</Button>
-        </form>
+        <div className="flex items-center gap-2">
+          <form action={sendWelcome}>
+            <Button type="submit" size="sm" variant="outline">Send welcome email</Button>
+          </form>
+        </div>
       </div>
 
       {/* ── Profile ── */}
@@ -292,6 +311,22 @@ export default async function MemberDetailPage({
           </div>
           <Button type="submit" size="sm">Save profile</Button>
         </form>
+        {isStaff && (
+          <form action={resetPassword} className="flex items-center gap-2 mt-3">
+            <Input
+              name="newPassword"
+              type="password"
+              placeholder="Set new password"
+              minLength={8}
+              required
+              className="h-8 w-48 text-sm"
+            />
+            <Button type="submit" size="sm" variant="outline">Set password</Button>
+            {searchParams.pwreset && (
+              <span className="text-xs text-green-600">Password updated.</span>
+            )}
+          </form>
+        )}
       </section>
 
       {/* ── Role (staff + admin) ── */}
