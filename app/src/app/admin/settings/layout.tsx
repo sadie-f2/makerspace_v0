@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const settingsLinks = [
   { href: "/admin/settings", label: "General" },
+  { href: "/admin/settings/tiers", label: "Tiers" },
   { href: "/admin/settings/space-types", label: "Space Types" },
   { href: "/admin/settings/studios", label: "Studios" },
 ];

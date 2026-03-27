@@ -1,11 +1,15 @@
-import { notFound } from "next/navigation";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { sendWelcomeMail } from "@/lib/email";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+const VALID_ROLES = ["MEMBER", "STAFF", "ADMIN"] as const;
 
 export default async function MemberDetailPage({
   params,
@@ -14,8 +18,9 @@ export default async function MemberDetailPage({
 }) {
   const { id } = await params;
   const session = await auth();
+  const isAdmin = session?.user.role === "ADMIN";
 
-  const [member, tiers, allEquipmentClasses] = await Promise.all([
+  const [member, tiers, allEquipmentClasses, availableResources] = await Promise.all([
     prisma.member.findUnique({
       where: { id, deletedAt: null },
       include: {
@@ -27,13 +32,23 @@ export default async function MemberDetailPage({
         leases: {
           where: { deletedAt: null, endDate: null },
           include: { resource: { select: { name: true, typeTag: true } } },
+          orderBy: { startDate: "desc" },
         },
       },
     }),
-    prisma.memberTier.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.memberTier.findMany({ where: { active: true }, orderBy: { sortOrder: "asc" } }),
     prisma.equipmentClass.findMany({
       where: { deletedAt: null },
       select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+    prisma.resource.findMany({
+      where: {
+        typeTag: { in: ["studio", "studio_unit", "storage_unit"] },
+        deletedAt: null,
+        leases: { none: { deletedAt: null, endDate: null } },
+      },
+      select: { id: true, name: true, typeTag: true },
       orderBy: { name: "asc" },
     }),
   ]);
@@ -43,22 +58,102 @@ export default async function MemberDetailPage({
   const activeCerts = member.certifications.filter(c => !c.revokedAt);
   const certifiedClassIds = new Set(activeCerts.map(c => c.equipmentClass.id));
   const uncertifiedClasses = allEquipmentClasses.filter(ec => !certifiedClassIds.has(ec.id));
+  const today = new Date().toISOString().split("T")[0];
+
+  // ── Server actions ──────────────────────────────────────────────────────────
+
+  async function updateProfile(formData: FormData) {
+    "use server";
+    const name             = (formData.get("name") as string).trim();
+    const email            = (formData.get("email") as string).trim();
+    const phone            = (formData.get("phone") as string).trim() || null;
+    const emergencyContact = (formData.get("emergencyContact") as string).trim() || null;
+    if (!name || !email) return;
+    await prisma.member.update({ where: { id }, data: { name, email, phone, emergencyContact } });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update",
+      entityType: "Member",
+      entityId: id,
+      before: { name: member!.name, email: member!.email, phone: member!.phone, emergencyContact: member!.emergencyContact },
+      after:  { name, email, phone, emergencyContact },
+      note: "Profile updated",
+    });
+    redirect(`/admin/members/${id}`);
+  }
+
+  async function assignRole(formData: FormData) {
+    "use server";
+    const role = formData.get("role") as string;
+    if (!VALID_ROLES.includes(role as typeof VALID_ROLES[number])) return;
+    await prisma.member.update({ where: { id }, data: { role: role as typeof VALID_ROLES[number] } });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update",
+      entityType: "Member",
+      entityId: id,
+      before: { role: member!.role },
+      after:  { role },
+      note: "Role changed",
+    });
+    redirect(`/admin/members/${id}`);
+  }
 
   async function assignTier(formData: FormData) {
     "use server";
     const tierId = (formData.get("tierId") as string) || null;
-    await prisma.member.update({
-      where: { id },
-      data: { tierId },
-    });
+    await prisma.member.update({ where: { id }, data: { tierId } });
     await audit({
       actorId: session?.user.id ?? null,
       action: "update",
       entityType: "Member",
       entityId: id,
       before: { tierId: member!.tierId },
-      after: { tierId },
+      after:  { tierId },
       note: "Tier assignment changed",
+    });
+    redirect(`/admin/members/${id}`);
+  }
+
+  async function sendWelcome(_formData: FormData) {
+    "use server";
+    await sendWelcomeMail({ name: member!.name, email: member!.email });
+    redirect(`/admin/members/${id}`);
+  }
+
+  async function addLease(formData: FormData) {
+    "use server";
+    const resourceId  = formData.get("resourceId") as string;
+    const startDate   = new Date(formData.get("startDate") as string);
+    const monthlyRate = parseFloat(formData.get("monthlyRate") as string);
+    if (!resourceId || isNaN(startDate.getTime()) || isNaN(monthlyRate)) return;
+    const lease = await prisma.lease.create({
+      data: { memberId: id, resourceId, startDate, monthlyRate },
+    });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "create",
+      entityType: "Lease",
+      entityId: lease.id,
+      before: null,
+      after: { memberId: id, resourceId, startDate, monthlyRate },
+    });
+    redirect(`/admin/members/${id}`);
+  }
+
+  async function endLease(formData: FormData) {
+    "use server";
+    const leaseId = formData.get("leaseId") as string;
+    const endDate = new Date();
+    await prisma.lease.update({ where: { id: leaseId }, data: { endDate } });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update",
+      entityType: "Lease",
+      entityId: leaseId,
+      before: { endDate: null },
+      after:  { endDate },
+      note: "Lease ended",
     });
     redirect(`/admin/members/${id}`);
   }
@@ -71,7 +166,7 @@ export default async function MemberDetailPage({
       where: { memberId_equipmentClassId: { memberId: id, equipmentClassId } },
     });
     const cert = await prisma.certification.upsert({
-      where: { memberId_equipmentClassId: { memberId: id, equipmentClassId } },
+      where:  { memberId_equipmentClassId: { memberId: id, equipmentClassId } },
       update: { revokedAt: null, revokedById: null, grantedAt: new Date(), grantedById },
       create: { memberId: id, equipmentClassId, grantedById },
     });
@@ -81,18 +176,18 @@ export default async function MemberDetailPage({
       entityType: "Certification",
       entityId: cert.id,
       before: existing ? { revokedAt: existing.revokedAt } : null,
-      after: { memberId: id, equipmentClassId, revokedAt: null },
+      after:  { memberId: id, equipmentClassId, revokedAt: null },
     });
     redirect(`/admin/members/${id}`);
   }
 
   async function revokeCert(formData: FormData) {
     "use server";
-    const certId = formData.get("certId") as string;
+    const certId  = formData.get("certId") as string;
     const revokedAt = new Date();
     await prisma.certification.update({
       where: { id: certId },
-      data: { revokedAt, revokedById: session!.user.id },
+      data:  { revokedAt, revokedById: session!.user.id },
     });
     await audit({
       actorId: session?.user.id ?? null,
@@ -100,18 +195,15 @@ export default async function MemberDetailPage({
       entityType: "Certification",
       entityId: certId,
       before: { revokedAt: null },
-      after: { revokedAt },
+      after:  { revokedAt },
     });
     redirect(`/admin/members/${id}`);
   }
 
-  const fields: [string, React.ReactNode][] = [
-    ["Email", member.email],
-    ["Phone", member.phone ?? <span className="text-gray-400">—</span>],
-    ["Emergency contact", member.emergencyContact ?? <span className="text-gray-400">—</span>],
-    ["Role", member.role],
-    ["Joined", member.createdAt.toLocaleDateString()],
-  ];
+  // ── Render ──────────────────────────────────────────────────────────────────
+
+  const sectionHead = "text-sm font-medium text-gray-500 uppercase tracking-wide mb-3";
+  const selectCls   = "border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400";
 
   return (
     <div className="max-w-2xl">
@@ -121,30 +213,57 @@ export default async function MemberDetailPage({
         </Link>
       </div>
 
-      <h2 className="text-lg font-semibold mb-6">{member.name}</h2>
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-lg font-semibold">{member.name}</h2>
+        <form action={sendWelcome}>
+          <Button type="submit" size="sm" variant="outline">Send welcome email</Button>
+        </form>
+      </div>
 
+      {/* ── Profile ── */}
       <section className="mb-8">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">Profile</h3>
-        <dl className="divide-y border rounded">
-          {fields.map(([label, value]) => (
-            <div key={label} className="flex px-4 py-2.5 text-sm">
-              <dt className="w-44 text-gray-500 shrink-0">{label}</dt>
-              <dd>{value}</dd>
-            </div>
-          ))}
-        </dl>
+        <h3 className={sectionHead}>Profile</h3>
+        <form action={updateProfile} className="space-y-3">
+          <div className="grid grid-cols-[10rem_1fr] items-center gap-x-4 gap-y-2 text-sm">
+            <Label htmlFor="name">Name</Label>
+            <Input id="name" name="name" defaultValue={member.name} required className="h-8" />
+
+            <Label htmlFor="email">Email</Label>
+            <Input id="email" name="email" type="email" defaultValue={member.email} required className="h-8" />
+
+            <Label htmlFor="phone">Phone</Label>
+            <Input id="phone" name="phone" type="tel" defaultValue={member.phone ?? ""} className="h-8" />
+
+            <Label htmlFor="emergencyContact">Emergency contact</Label>
+            <Input id="emergencyContact" name="emergencyContact" defaultValue={member.emergencyContact ?? ""} className="h-8" />
+
+            <span className="text-gray-500">Joined</span>
+            <span className="text-sm">{member.createdAt.toLocaleDateString()}</span>
+          </div>
+          <Button type="submit" size="sm">Save profile</Button>
+        </form>
       </section>
 
+      {/* ── Role (admin only) ── */}
+      {isAdmin && (
+        <section className="mb-8">
+          <h3 className={sectionHead}>Role</h3>
+          <form action={assignRole} className="flex items-center gap-3">
+            <select name="role" defaultValue={member.role} className={selectCls}>
+              <option value="MEMBER">Member</option>
+              <option value="STAFF">Staff</option>
+              <option value="ADMIN">Admin</option>
+            </select>
+            <Button size="sm" type="submit">Save</Button>
+          </form>
+        </section>
+      )}
+
+      {/* ── Tier ── */}
       <section className="mb-8">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Membership Tier
-        </h3>
+        <h3 className={sectionHead}>Membership Tier</h3>
         <form action={assignTier} className="flex items-center gap-3">
-          <select
-            name="tierId"
-            defaultValue={member.tierId ?? ""}
-            className="border rounded px-3 py-1.5 text-sm w-64 focus:outline-none focus:ring-1 focus:ring-gray-400"
-          >
+          <select name="tierId" defaultValue={member.tierId ?? ""} className={`${selectCls} w-64`}>
             <option value="">— No tier —</option>
             {tiers.map((t) => (
               <option key={t.id} value={t.id}>
@@ -156,30 +275,75 @@ export default async function MemberDetailPage({
         </form>
       </section>
 
+      {/* ── Leases ── */}
       <section className="mb-8">
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Active Leases
-        </h3>
+        <h3 className={sectionHead}>Active Leases</h3>
         {member.leases.length === 0 ? (
-          <p className="text-sm text-gray-400">No active leases.</p>
+          <p className="text-sm text-gray-400 mb-3">No active leases.</p>
         ) : (
-          <ul className="text-sm border rounded divide-y">
+          <ul className="text-sm border rounded divide-y mb-4">
             {member.leases.map((l) => (
               <li key={l.id} className="flex items-center justify-between px-4 py-2.5">
-                <span>{l.resource.name}</span>
-                <span className="text-gray-500">
-                  ${Number(l.monthlyRate).toFixed(0)}/mo · since {l.startDate.toLocaleDateString()}
-                </span>
+                <div>
+                  <span className="font-medium">{l.resource.name}</span>
+                  <span className="ml-2 text-xs text-gray-400">{l.resource.typeTag}</span>
+                </div>
+                <div className="flex items-center gap-4">
+                  <span className="text-gray-500 text-xs">
+                    ${Number(l.monthlyRate).toFixed(0)}/mo · since {l.startDate.toLocaleDateString()}
+                  </span>
+                  <form action={endLease}>
+                    <input type="hidden" name="leaseId" value={l.id} />
+                    <button
+                      type="submit"
+                      className="text-xs text-red-400 hover:text-red-600"
+                    >
+                      End
+                    </button>
+                  </form>
+                </div>
               </li>
             ))}
           </ul>
         )}
+
+        {availableResources.length > 0 && (
+          <form action={addLease} className="flex flex-wrap gap-2 items-end">
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Resource</label>
+              <select name="resourceId" required className={selectCls}>
+                <option value="">Select resource…</option>
+                {availableResources.map(r => (
+                  <option key={r.id} value={r.id}>
+                    {r.name} ({r.typeTag === "storage_unit" ? "storage" : "studio"})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Start date</label>
+              <Input name="startDate" type="date" defaultValue={today} className="h-8 w-36 text-sm" />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-gray-500">Monthly rate ($)</label>
+              <Input
+                name="monthlyRate"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="0.00"
+                required
+                className="h-8 w-28 text-sm"
+              />
+            </div>
+            <Button type="submit" size="sm">Add lease</Button>
+          </form>
+        )}
       </section>
 
+      {/* ── Certifications ── */}
       <section>
-        <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
-          Certifications ({activeCerts.length})
-        </h3>
+        <h3 className={sectionHead}>Certifications ({activeCerts.length})</h3>
         {activeCerts.length === 0 ? (
           <p className="text-sm text-gray-400 mb-3">No active certifications.</p>
         ) : (
@@ -205,11 +369,7 @@ export default async function MemberDetailPage({
         )}
         {uncertifiedClasses.length > 0 && (
           <form action={grantCert} className="flex gap-2 items-center">
-            <select
-              name="equipmentClassId"
-              required
-              className="border rounded px-3 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-gray-400"
-            >
+            <select name="equipmentClassId" required className={selectCls}>
               <option value="">Grant certification…</option>
               {uncertifiedClasses.map(ec => (
                 <option key={ec.id} value={ec.id}>{ec.name}</option>
