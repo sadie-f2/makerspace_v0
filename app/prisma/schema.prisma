@@ -16,8 +16,27 @@ datasource db {
 
 enum MemberRole {
   MEMBER
+  VOLUNTEER
   STAFF
   ADMIN
+}
+
+enum LeaseRequestType {
+  START
+  END
+}
+
+enum LeaseRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WaitlistStatus {
+  WAITING
+  OFFERED
+  ACCEPTED
+  WITHDRAWN
 }
 
 enum ReservationMode {
@@ -61,14 +80,19 @@ model Member {
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
-  tier             MemberTier?      @relation(fields: [tierId], references: [id])
+  tier             MemberTier?        @relation(fields: [tierId], references: [id])
   accounts         Account[]
   sessions         Session[]
   certifications   Certification[]
   reservations     Reservation[]
   leases           Lease[]
   dayPasses        DayPass[]
-  auditLogs        AuditLog[]       @relation("AuditActor")
+  auditLogs        AuditLog[]         @relation("AuditActor")
+  permissions      MemberPermission[] @relation("PermissionHolder")
+  permissionsGranted MemberPermission[] @relation("PermissionGrantor")
+  leaseRequests    LeaseRequest[]     @relation("LeaseRequester")
+  leaseRequestsReviewed LeaseRequest[] @relation("LeaseRequestReviewer")
+  waitlistEntries  WaitlistEntry[]
 }
 
 model MemberTier {
@@ -171,6 +195,9 @@ model Resource {
   reservationMode     ReservationMode  @default(NONE)
   leaseAccessScope    LeaseAccessScope @default(ORG_WIDE)
   requiresCertClassId String?
+  outOfService        Boolean          @default(false)
+  outOfServiceAt      DateTime?
+  outOfServiceNote    String?
   deletedAt           DateTime?
   deletedById         String?
   createdAt           DateTime         @default(now())
@@ -182,6 +209,8 @@ model Resource {
   spaces            Space[]
   reservations      Reservation[]
   leases            Lease[]
+  leaseRequests     LeaseRequest[]
+  waitlistOffers    WaitlistEntry[]
 }
 
 // ---------------------------------------------------------------------------
@@ -221,8 +250,70 @@ model Lease {
   createdAt                DateTime  @default(now())
   updatedAt                DateTime  @updatedAt
 
-  resource Resource @relation(fields: [resourceId], references: [id])
-  member   Member   @relation(fields: [memberId], references: [id])
+  resource      Resource       @relation(fields: [resourceId], references: [id])
+  member        Member         @relation(fields: [memberId], references: [id])
+  leaseRequests LeaseRequest[]
+}
+
+// ---------------------------------------------------------------------------
+// Member fine-grained permissions
+// ---------------------------------------------------------------------------
+
+model MemberPermission {
+  id          String    @id @default(cuid())
+  memberId    String
+  permission  String    // e.g. "role.shop_lead", "equipment.mark_down", "certifications.grant.<classId>"
+  grantedById String
+  grantedAt   DateTime  @default(now())
+  expiresAt   DateTime?
+
+  member    Member @relation("PermissionHolder", fields: [memberId], references: [id])
+  grantedBy Member @relation("PermissionGrantor", fields: [grantedById], references: [id])
+
+  @@unique([memberId, permission])
+}
+
+// ---------------------------------------------------------------------------
+// Lease requests (member-initiated; staff/admin approves)
+// ---------------------------------------------------------------------------
+
+model LeaseRequest {
+  id                   String             @id @default(cuid())
+  memberId             String
+  resourceId           String
+  requestType          LeaseRequestType
+  requestedStartDate   DateTime?          // for START requests
+  requestedMonthlyRate Decimal?           @db.Decimal(10, 2)
+  leaseId              String?            // linked on END approval
+  status               LeaseRequestStatus @default(PENDING)
+  reviewedById         String?
+  reviewedAt           DateTime?
+  reviewNote           String?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  member     Member    @relation("LeaseRequester", fields: [memberId], references: [id])
+  resource   Resource  @relation(fields: [resourceId], references: [id])
+  reviewedBy Member?   @relation("LeaseRequestReviewer", fields: [reviewedById], references: [id])
+  lease      Lease?    @relation(fields: [leaseId], references: [id])
+}
+
+// ---------------------------------------------------------------------------
+// Waitlist (studio / storage queue)
+// ---------------------------------------------------------------------------
+
+model WaitlistEntry {
+  id                String         @id @default(cuid())
+  memberId          String
+  resourceTypeTag   String         // "studio" | "storage_unit" | etc.
+  requestedAt       DateTime       @default(now())
+  status            WaitlistStatus @default(WAITING)
+  note              String?
+  offeredResourceId String?
+  offeredAt         DateTime?
+
+  member          Member    @relation(fields: [memberId], references: [id])
+  offeredResource Resource? @relation(fields: [offeredResourceId], references: [id])
 }
 
 // ---------------------------------------------------------------------------

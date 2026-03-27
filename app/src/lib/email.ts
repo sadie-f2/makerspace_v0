@@ -2,9 +2,13 @@ import nodemailer from "nodemailer";
 
 function makeTransport() {
   if (!process.env.SMTP_HOST) return null;
+  const port   = parseInt(process.env.SMTP_PORT ?? "2525");
+  const secure = port === 465; // implicit TLS on 465; STARTTLS on 587/2525
   return nodemailer.createTransport({
-    host:   process.env.SMTP_HOST,
-    port:   parseInt(process.env.SMTP_PORT ?? "2525"),
+    host:       process.env.SMTP_HOST,
+    port,
+    secure,
+    requireTLS: !secure, // enforce STARTTLS on non-SSL ports (rejects plaintext fallback)
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASSWORD,
