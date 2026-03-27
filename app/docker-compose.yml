@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: makerspace
+      POSTGRES_USER: makerspace
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U makerspace"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        AUTH_SECRET: ${AUTH_SECRET}
+        AUTH_URL: ${AUTH_URL}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://makerspace:${POSTGRES_PASSWORD}@db:5432/makerspace
+      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_URL: ${AUTH_URL}
+      NODE_ENV: production
+      # Email (optional — omit to disable)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-2525}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      SMTP_FROM_NAME: ${SMTP_FROM_NAME:-Artisans Asylum}
+    ports:
+      - "3000:3000"
+    volumes:
+      # Uploaded floor plan files persist across deploys
+      - floorplans:/app/public/floorplans
+
+volumes:
+  pgdata:
+  floorplans:
