@@ -8,7 +8,7 @@ and what it takes to make the case vs. continuing with Nexudus.
 
 ## Where We Are
 
-Three days of focused, intensive work produced:
+Initial sprint (3 days) + abstraction layer sprint produced:
 
 - Schema and core models
 - Auth, roles, and fine-grained permissions
@@ -20,13 +20,19 @@ Three days of focused, intensive work produced:
 - Certification management (grant/revoke, volunteer permissions, directory)
 - Day pass (request + history shell)
 - Audit log with viewer
-- Email (welcome)
 - Admin dashboard (13 sections, most functional)
 - Member portal (7 sections, most functional)
 - Settings (tiers, studio sizes, space types)
+- Docker deployment stack (Dockerfile, docker-compose, provision.sh)
+- **Four abstraction layers — all wired to real call sites:**
+  - **Notifications** (`src/lib/notifications/`) — 13 typed events, SMTP impl, stubs gracefully
+  - **Payment** (`src/lib/payment/`) — Stripe v21, createCustomer/createSubscription/cancelSubscription/webhook route
+  - **Identity** (`src/lib/identity/`) — bcrypt impl, all direct crypto removed from app code
+  - **Access Control** (`src/lib/access/`) — noop impl, suspend/restore UI in admin, ready for Okta/Brivo swap
 
-The floor plan system was the deep end — novel, multi-layer, no library does
-it for you. Everything remaining is more standard by comparison.
+The abstraction layers mean external provider swaps (Okta, Brivo, alternate payment processor)
+are now a single-file change. The floor plan system was the deep end — novel, multi-layer, no
+library does it for you. Everything remaining is more standard by comparison.
 
 ---
 
@@ -70,8 +76,8 @@ sandbox-to-production risk; building it under pressure is the wrong time.
 | Item | Estimate | Notes |
 |---|---|---|
 | Booking calendar | 3–5 days | Schema done, prior art, interval arithmetic |
-| Stripe subscriptions + webhooks | 4–7 days | One item with real uncertainty — budget conservatively |
-| Day pass Stripe (one-time payment) | 1 day | Simpler than subscriptions |
+| Stripe subscriptions + webhooks | ~~4–7 days~~ **done** | Interface + impl + webhook route complete; sandbox testing remains |
+| Day pass Stripe (one-time payment) | 1 day | PaymentIntent impl exists; needs portal UI wiring |
 | Reporting (core reports) | 2–3 days | SQL + CSV, mechanical |
 | Storage rental (after staff decisions) | 2–3 days | Largely repeats studio pattern |
 | **Subtotal** | **~2.5–4 weeks** | |
@@ -81,7 +87,7 @@ sandbox-to-production risk; building it under pressure is the wrong time.
 | Item | Estimate |
 |---|---|
 | Waitlist self-service acceptance | 1 day |
-| Notification expansion | 2–3 days |
+| Notification expansion | ~~2–3 days~~ **done** — all 13 types wired |
 | Undo UI | 2–3 days |
 | Offsite backup | 1 day |
 
@@ -101,15 +107,16 @@ is possible in **~3 weeks** with some rough edges accepted.
 ## Identity Provider: Okta is Not Required Yet
 
 Local credentials (NextAuth, bcrypt) are fully built and production-ready for
-the scale of this deployment. The adapter pattern is in place — adding Okta or
-Auth0 is a contained change to `auth.ts` when the time and budget are right.
+the scale of this deployment. The `IdentityProvider` interface is in place —
+adding Okta is now: implement `src/lib/identity/okta.ts`, change one line in
+`index.ts`. Same pattern for `AccessProvider` (Brivo via Okta).
 
 **Okta at full rollout: ~$14,000/year.** That spend is justifiable once the
 platform is proven. It is not necessary to prove the platform.
 
 Deferring Okta also defers Brivo integration (the Okta → Brivo connector is the
-clean path). Brivo can be integrated via direct API when Okta is adopted, or
-kept as a manual process in the interim.
+clean path). Access suspension/restoration is fully operational in the UI now
+via the noop provider — Brivo just replaces the no-op calls.
 
 ---
 

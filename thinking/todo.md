@@ -48,11 +48,34 @@
 - [x] Admin/staff portal link in admin header
 - [ ] Booking/reservations — deferred to next session
 
-## Email
+## Abstraction Layers
+
+- [x] Notifications layer — `src/lib/notifications/` (types, provider interface, SMTP impl, index)
+  - All 13 notification types with typed payload map
+  - Graceful stub when SMTP unconfigured
+  - Call sites: admin member page (welcome email), rental-requests (approve/reject/end)
+  - lib/email.ts superseded (dead code, can delete)
+- [x] Payment layer — `src/lib/payment/` (types, provider interface, Stripe impl, index)
+  - Stripe v21, stubs gracefully when STRIPE_SECRET_KEY unset
+  - createCustomer wired into member creation (admin + register)
+  - createSubscription / cancelSubscription wired into rental approval
+  - Webhook route: `/api/webhooks/stripe` — subscription sync + invoice notifications + day-pass
+  - Schema: `Rental.stripeSubscriptionId`, `Rental.stripeSubscriptionStatus` (migration applied)
+- [x] Identity layer — `src/lib/identity/` (types, provider interface, local bcrypt impl, index)
+  - All direct bcrypt calls removed from app code
+  - Call sites: auth.ts, admin/members/new, admin/members/[id], register, portal/profile
+- [x] Access Control layer — `src/lib/access/` (types, provider interface, noop impl, index)
+  - Schema: `Member.accessSuspended`, `Member.accessSuspendedAt` (migration applied)
+  - Admin member page: Building Access section — suspend/restore with reason, notifications, audit log
+  - access.syncMember() called on profile update
+  - Noop logs; swap to oktaAccess when Okta/Brivo credentials available
+
+## Email (superseded by Notifications layer)
 
 - [x] lib/email.ts — smtp2go via nodemailer, TLS-aware (port 465 SSL / else STARTTLS)
 - [x] Welcome email (admin-triggered from member detail page)
 - [x] Staff can set/reset member password from admin member detail
+- [ ] Delete lib/email.ts (now dead code)
 - [ ] Wire up SMTP env vars on production server
 
 ## Floor plan / studio — known issues
@@ -64,9 +87,17 @@
 ## Data Integrity
 
 - [x] AuditLog writes in all admin server actions
-- [ ] DB query logging design
-- [ ] Manual rollback UI (admin — apply before-state from audit log)
-- [ ] Runtime validation of JWT role claim (replace `as MemberRole` cast)
+- [x] DB query logging design — intentional writes at business layer (see data-integrity-v0.3.md); no ORM interception by design
+- [x] Runtime validation of JWT role claim — `assertRole()` in auth.ts, degrades to MEMBER on invalid value
+- [x] System freeze — `lib/freeze.ts` with 5s cached check; `requireUnfrozen()` called in all 13 admin page files
+- [x] Freeze toggle UI — `/admin/settings` with reason field, admin-only, audit logged
+- [x] Freeze banner — red banner in admin layout when frozen, links to settings
+- [x] Undo system — `lib/undo.ts`; 1-hour window; per-entity applicators for Member/Rental/Certification/MemberPermission/Resource/WaitlistEntry; writes `action="undo"` audit entry with `undoOfId` reference
+- [x] Audit log enhancements — entity history filter (entityId param), flagged-only filter, flag/unflag entries (`flagNote` field), undo buttons with countdown, undo chain links
+- [x] AuditLog schema — `undoOfId` (self-ref FK), `flagNote` (post-hoc annotation) added
+- [ ] Manual rollback UI for actions outside 1-hour window (currently requires psql)
+- [ ] Restore UI for soft-deleted records (browse + undelete)
+- [x] IP address population in audit entries — `getClientIp()` in `lib/audit.ts`, reads `x-forwarded-for` / `x-real-ip`, degrades to null outside request context
 
 ## Tests
 
@@ -74,7 +105,9 @@
 - [x] Vitest — CSV parser, upload diff validation, studio naming
 - [ ] Vitest — lib/permissions.ts hasPermission() cert hierarchy
 - [ ] Vitest — studioSqFt calculation
-- [ ] Vitest — lib/email.ts stub-when-unconfigured behavior
+- [ ] Vitest — notifications smtp stub-when-unconfigured behavior
+- [ ] Vitest — payment stripe stub-when-unconfigured behavior
+- [ ] Vitest — identity.verifyCredentials returns false for bad password
 - [ ] Integration — registration validation (pw mismatch, short, taken)
 - [ ] Integration — proxy route protection
 
@@ -91,4 +124,5 @@
 - [ ] UptimeRobot monitor on /api/health
 - [ ] GitHub deploy key on server
 - [ ] Confirm production domain/subdomain
-- [ ] Stripe webhook endpoint URL (before payment integration)
+- [ ] Stripe webhook endpoint URL configured in Stripe dashboard → `/api/webhooks/stripe`
+- [ ] STRIPE_SECRET_KEY + STRIPE_WEBHOOK_SECRET on production server
