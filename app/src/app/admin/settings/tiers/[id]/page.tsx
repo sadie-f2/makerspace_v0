@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ export default async function EditTierPage({
 
   async function updateTier(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/tiers");
     const name        = (formData.get("name") as string).trim();
     const slug        = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/, "");
     const monthlyRate = parseFloat(formData.get("monthlyRate") as string);

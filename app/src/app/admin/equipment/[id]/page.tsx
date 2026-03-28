@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +43,7 @@ export default async function EquipmentClassPage({
 
   async function grantCert(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/equipment/${id}`);
     const memberId = formData.get("memberId") as string;
     const grantedById = session!.user.id;
     const existing = await prisma.certification.findUnique({
@@ -65,6 +67,7 @@ export default async function EquipmentClassPage({
 
   async function revokeCert(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/equipment/${id}`);
     const certId = formData.get("certId") as string;
     const revokedAt = new Date();
     await prisma.certification.update({

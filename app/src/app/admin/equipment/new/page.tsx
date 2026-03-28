@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ export default function NewEquipmentClassPage() {
   async function createClass(formData: FormData) {
     "use server";
     const session = await auth();
+    await requireUnfrozen("/admin/equipment");
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
     const ec = await prisma.equipmentClass.create({ data: { name, description } });

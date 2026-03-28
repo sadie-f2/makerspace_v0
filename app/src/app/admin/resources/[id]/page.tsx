@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export default async function ResourceDetailPage({
 
   async function updateResource(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/resources/${id}`);
     const name = formData.get("name") as string;
     const description = (formData.get("description") as string) || null;
     const typeTag = formData.get("typeTag") as string;
@@ -96,6 +98,7 @@ export default async function ResourceDetailPage({
 
   async function deleteResource(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/resources/${id}`);
     void formData;
     const deletedAt = new Date();
     await prisma.resource.update({

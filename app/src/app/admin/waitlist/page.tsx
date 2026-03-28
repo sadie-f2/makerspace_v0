@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -37,6 +38,7 @@ export default async function WaitlistPage() {
 
   async function offerResource(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/waitlist");
     const entryId    = formData.get("entryId") as string;
     const resourceId = formData.get("resourceId") as string;
     if (!resourceId) return;
@@ -55,6 +57,7 @@ export default async function WaitlistPage() {
 
   async function acceptOffer(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/waitlist");
     // Staff accepts on behalf of member (member portal flow deferred)
     const entryId    = formData.get("entryId") as string;
     const entry = await prisma.waitlistEntry.findUnique({
@@ -87,6 +90,7 @@ export default async function WaitlistPage() {
 
   async function withdraw(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/waitlist");
     const entryId = formData.get("entryId") as string;
     await prisma.waitlistEntry.update({
       where: { id: entryId },

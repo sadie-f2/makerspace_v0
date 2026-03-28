@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -8,6 +9,7 @@ export default async function StudioSettingsPage() {
 
   async function addSize(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/studios");
     const raw = formData.get("unitCount") as string;
     const n = parseInt(raw, 10);
     if (isNaN(n) || n < 1) return;
@@ -22,6 +24,7 @@ export default async function StudioSettingsPage() {
 
   async function toggleSize(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/studios");
     const id = formData.get("id") as string;
     const current = await prisma.studioSize.findUnique({ where: { id } });
     if (!current) return;

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,6 +39,7 @@ export default async function NewResourcePage() {
     const requiresCertClassId = (formData.get("requiresCertClassId") as string) || null;
 
     const session = await auth();
+    await requireUnfrozen("/admin/resources/new");
     const r = await prisma.resource.create({
       data: {
         name,

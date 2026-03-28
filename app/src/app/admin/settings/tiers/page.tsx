@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 
 export default async function TierSettingsPage() {
@@ -8,6 +9,7 @@ export default async function TierSettingsPage() {
 
   async function toggleActive(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/tiers");
     const id = formData.get("id") as string;
     const current = await prisma.memberTier.findUnique({ where: { id } });
     if (!current) return;

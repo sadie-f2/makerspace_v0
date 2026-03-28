@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +25,7 @@ export default async function SpaceTypesPage() {
 
   async function updateType(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/space-types");
     const id = formData.get("id") as string;
     const label = formData.get("label") as string;
     const dxfLayer = (formData.get("dxfLayer") as string) || null;
@@ -48,6 +50,7 @@ export default async function SpaceTypesPage() {
 
   async function createType(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/space-types");
     const slug = formData.get("slug") as string;
     const label = formData.get("label") as string;
     const dxfLayer = (formData.get("dxfLayer") as string) || null;
@@ -75,6 +78,7 @@ export default async function SpaceTypesPage() {
 
   async function deleteType(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/settings/space-types");
     const id = formData.get("id") as string;
     // Check for any resources using this slug before deleting
     const type = await prisma.spaceTypeConfig.findUnique({ where: { id } });
