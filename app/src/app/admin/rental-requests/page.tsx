@@ -3,6 +3,9 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { payment } from "@/lib/payment";
+import { notify } from "@/lib/notifications";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -32,6 +35,7 @@ export default async function RentalRequestsPage() {
 
   async function approve(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/rental-requests");
     const requestId = formData.get("requestId") as string;
     const reviewNote = (formData.get("reviewNote") as string).trim() || null;
 
@@ -44,10 +48,31 @@ export default async function RentalRequestsPage() {
     if (req.requestType === "START") {
       // Create the rental
       const startDate   = req.requestedStartDate ?? new Date();
-      const monthlyRate = req.requestedMonthlyRate ?? 0;
+      const monthlyRate = Number(req.requestedMonthlyRate ?? 0);
+
       const rental = await prisma.rental.create({
         data: { memberId: req.memberId, resourceId: req.resourceId, startDate, monthlyRate },
       });
+
+      // Create Stripe subscription if member has a customer ID
+      const member = await prisma.member.findUnique({
+        where:  { id: req.memberId },
+        select: { stripeCustomerId: true, name: true, email: true },
+      });
+      if (member?.stripeCustomerId) {
+        const { subscriptionId, subscriptionItemId } = await payment.createSubscription({
+          customerId:  member.stripeCustomerId,
+          unitAmount:  Math.round(monthlyRate * 100),
+          currency:    "usd",
+          description: `Rental: ${req.resource.name}`,
+          metadata:    { rentalId: rental.id, memberId: req.memberId },
+        });
+        await prisma.rental.update({
+          where: { id: rental.id },
+          data:  { stripeSubscriptionId: subscriptionId, stripeSubscriptionItemId: subscriptionItemId },
+        });
+      }
+
       await prisma.rentalRequest.update({
         where: { id: requestId },
         data: {
@@ -65,17 +90,31 @@ export default async function RentalRequestsPage() {
         after: { memberId: req.memberId, resourceId: req.resourceId, startDate, monthlyRate },
         note: "Created via rental request approval",
       });
+
+      // Notify member
+      if (member) {
+        await notify("rental.approved", member, {
+          resourceName: req.resource.name,
+          startDate,
+          monthlyRate,
+        });
+      }
     } else {
       // END — close the active rental for this resource + member
       const rental = await prisma.rental.findFirst({
         where: { memberId: req.memberId, resourceId: req.resourceId, deletedAt: null, endDate: null },
       });
       if (rental) {
-        await prisma.rental.update({ where: { id: rental.id }, data: { endDate: new Date() } });
+        // Cancel Stripe subscription if one exists
+        if (rental.stripeSubscriptionId) {
+          await payment.cancelSubscription(rental.stripeSubscriptionId);
+        }
+        const endDate = new Date();
+        await prisma.rental.update({ where: { id: rental.id }, data: { endDate } });
         await audit({
           actorId: session?.user.id ?? null,
           action: "update", entityType: "Rental", entityId: rental.id,
-          before: { endDate: null }, after: { endDate: new Date() },
+          before: { endDate: null }, after: { endDate },
           note: "Ended via rental request approval",
         });
       }
@@ -89,14 +128,34 @@ export default async function RentalRequestsPage() {
           rentalId: rental?.id,
         },
       });
+
+      // Notify member
+      const member = await prisma.member.findUnique({
+        where:  { id: req.memberId },
+        select: { name: true, email: true },
+      });
+      if (member && rental) {
+        await notify("rental.end.approved", member, {
+          resourceName: req.resource.name,
+          endDate: new Date(),
+        });
+      }
     }
     redirect("/admin/rental-requests");
   }
 
   async function reject(formData: FormData) {
     "use server";
+    await requireUnfrozen("/admin/rental-requests");
     const requestId  = formData.get("requestId") as string;
     const reviewNote = (formData.get("reviewNote") as string).trim() || null;
+
+    const req = await prisma.rentalRequest.findUnique({
+      where:   { id: requestId },
+      include: { member: { select: { name: true, email: true } }, resource: true },
+    });
+    if (!req || req.status !== "PENDING") return;
+
     await prisma.rentalRequest.update({
       where: { id: requestId },
       data: {
@@ -106,6 +165,12 @@ export default async function RentalRequestsPage() {
         reviewNote,
       },
     });
+
+    await notify("rental.rejected", req.member, {
+      resourceName: req.resource.name,
+      note: reviewNote ?? undefined,
+    });
+
     redirect("/admin/rental-requests");
   }
 

@@ -1,11 +1,13 @@
 import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
-import { sendWelcomeMail } from "@/lib/email";
+import { identity } from "@/lib/identity";
+import { access } from "@/lib/access";
+import { notify } from "@/lib/notifications";
 import { hasPermission, PERMISSION_LABELS } from "@/lib/permissions";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -93,12 +95,14 @@ export default async function MemberDetailPage({
 
   async function updateProfile(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const name             = (formData.get("name") as string).trim();
     const email            = (formData.get("email") as string).trim();
     const phone            = (formData.get("phone") as string).trim() || null;
     const emergencyContact = (formData.get("emergencyContact") as string).trim() || null;
     if (!name || !email) return;
     await prisma.member.update({ where: { id }, data: { name, email, phone, emergencyContact } });
+    await access.syncMember({ memberId: id, name, email, oktaId: member!.oktaId ?? undefined });
     await audit({
       actorId: session?.user.id ?? null,
       action: "update", entityType: "Member", entityId: id,
@@ -111,6 +115,7 @@ export default async function MemberDetailPage({
 
   async function assignRole(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const role = formData.get("role") as string;
     if (!VALID_ROLES.includes(role as ValidRole)) return;
     // Staff can only assign up to VOLUNTEER; admin can assign any
@@ -128,6 +133,7 @@ export default async function MemberDetailPage({
 
   async function assignTier(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const tierId = (formData.get("tierId") as string) || null;
     await prisma.member.update({ where: { id }, data: { tierId } });
     await audit({
@@ -140,16 +146,19 @@ export default async function MemberDetailPage({
 
   async function sendWelcome(_formData: FormData) {
     "use server";
-    await sendWelcomeMail({ name: member!.name, email: member!.email });
+    await requireUnfrozen(`/admin/members/${id}`);
+    await notify("welcome", { name: member!.name, email: member!.email }, {
+      loginUrl: `${process.env.AUTH_URL ?? "http://localhost:3000"}/login`,
+    });
     redirect(`/admin/members/${id}`);
   }
 
   async function resetPassword(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const newPassword = (formData.get("newPassword") as string).trim();
     if (newPassword.length < 8) return;
-    const passwordHash = await bcrypt.hash(newPassword, 12);
-    await prisma.member.update({ where: { id }, data: { passwordHash } });
+    await identity.setPassword({ memberId: id, newPassword });
     await audit({
       actorId: session?.user.id ?? null,
       action: "update", entityType: "Member", entityId: id,
@@ -158,8 +167,47 @@ export default async function MemberDetailPage({
     redirect(`/admin/members/${id}?pwreset=1`);
   }
 
+  async function suspendAccess(formData: FormData) {
+    "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
+    const reason = (formData.get("reason") as string).trim() || undefined;
+    await prisma.member.update({
+      where: { id },
+      data:  { accessSuspended: true, accessSuspendedAt: new Date() },
+    });
+    await access.revokeAccess({ memberId: id, name: member!.name, email: member!.email, oktaId: member!.oktaId ?? undefined });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update", entityType: "Member", entityId: id,
+      before: { accessSuspended: false }, after: { accessSuspended: true },
+      note: reason ? `Access suspended: ${reason}` : "Access suspended",
+    });
+    await notify("access.suspended", { name: member!.name, email: member!.email }, { reason });
+    redirect(`/admin/members/${id}`);
+  }
+
+  async function restoreAccess(formData: FormData) {
+    "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
+    const note = (formData.get("note") as string).trim() || undefined;
+    await prisma.member.update({
+      where: { id },
+      data:  { accessSuspended: false, accessSuspendedAt: null },
+    });
+    await access.grantAccess({ memberId: id, name: member!.name, email: member!.email, oktaId: member!.oktaId ?? undefined });
+    await audit({
+      actorId: session?.user.id ?? null,
+      action: "update", entityType: "Member", entityId: id,
+      before: { accessSuspended: true }, after: { accessSuspended: false },
+      note: note ? `Access restored: ${note}` : "Access restored",
+    });
+    await notify("access.restored", { name: member!.name, email: member!.email }, { note });
+    redirect(`/admin/members/${id}`);
+  }
+
   async function grantPermission(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     // Custom key takes precedence over picker selection
     const custom     = (formData.get("permissionCustom") as string ?? "").trim();
     const picked     = (formData.get("permissionSelect") as string ?? "").trim();
@@ -180,6 +228,7 @@ export default async function MemberDetailPage({
 
   async function revokePermission(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const permissionId = formData.get("permissionId") as string;
     const perm = await prisma.memberPermission.findUnique({ where: { id: permissionId } });
     await prisma.memberPermission.delete({ where: { id: permissionId } });
@@ -193,6 +242,7 @@ export default async function MemberDetailPage({
 
   async function addRental(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const resourceId  = formData.get("resourceId") as string;
     const startDate   = new Date(formData.get("startDate") as string);
     const monthlyRate = parseFloat(formData.get("monthlyRate") as string);
@@ -210,6 +260,7 @@ export default async function MemberDetailPage({
 
   async function endRental(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const rentalId = formData.get("rentalId") as string;
     const endDate = new Date();
     await prisma.rental.update({ where: { id: rentalId }, data: { endDate } });
@@ -223,6 +274,7 @@ export default async function MemberDetailPage({
 
   async function grantCert(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const equipmentClassId = formData.get("equipmentClassId") as string;
     const grantedById = session!.user.id;
     // Auth: staff/admin always allowed; volunteers need certifications.grant or class-specific grant
@@ -252,6 +304,7 @@ export default async function MemberDetailPage({
 
   async function revokeCert(formData: FormData) {
     "use server";
+    await requireUnfrozen(`/admin/members/${id}`);
     const certId    = formData.get("certId") as string;
     const revokedAt = new Date();
     await prisma.certification.update({
@@ -328,6 +381,38 @@ export default async function MemberDetailPage({
           </form>
         )}
       </section>
+
+      {/* ── Access Control (staff + admin) ── */}
+      {isStaff && (
+        <section className="mb-8">
+          <h3 className={sectionHead}>Building Access</h3>
+          <div className="flex items-center gap-3 text-sm mb-3">
+            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+              member.accessSuspended
+                ? "bg-red-100 text-red-800"
+                : "bg-green-100 text-green-800"
+            }`}>
+              {member.accessSuspended ? "Suspended" : "Active"}
+            </span>
+            {member.accessSuspendedAt && (
+              <span className="text-gray-400 text-xs">
+                since {member.accessSuspendedAt.toLocaleDateString()}
+              </span>
+            )}
+          </div>
+          {member.accessSuspended ? (
+            <form action={restoreAccess} className="flex items-center gap-2">
+              <Input name="note" placeholder="Reason for restoration (optional)" className="h-8 text-sm w-64" />
+              <Button type="submit" size="sm">Restore access</Button>
+            </form>
+          ) : (
+            <form action={suspendAccess} className="flex items-center gap-2">
+              <Input name="reason" placeholder="Reason for suspension (optional)" className="h-8 text-sm w-64" />
+              <Button type="submit" size="sm" variant="destructive">Suspend access</Button>
+            </form>
+          )}
+        </section>
+      )}
 
       {/* ── Role (staff + admin) ── */}
       {isStaff && (

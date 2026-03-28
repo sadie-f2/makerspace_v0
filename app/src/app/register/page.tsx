@@ -1,8 +1,9 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signIn } from "@/auth";
+import { identity } from "@/lib/identity";
+import { payment } from "@/lib/payment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,10 +34,13 @@ export default function RegisterPage({
     const existing = await prisma.member.findUnique({ where: { email } });
     if (existing) redirect("/register?error=taken");
 
-    const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.member.create({
-      data: { name, email, passwordHash },
+    const member = await prisma.member.create({
+      data: { name, email },
     });
+    await identity.provisionUser({ memberId: member.id, name, email, initialPassword: password });
+
+    const stripeCustomerId = await payment.createCustomer({ memberId: member.id, name, email });
+    await prisma.member.update({ where: { id: member.id }, data: { stripeCustomerId } });
 
     await signIn("credentials", { email, password, redirectTo: "/portal" });
   }

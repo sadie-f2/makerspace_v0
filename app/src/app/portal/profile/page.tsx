@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import bcrypt from "bcryptjs";
+import { identity } from "@/lib/identity";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -39,17 +39,17 @@ export default async function ProfilePage({
     if (next !== confirm)    redirect("/portal/profile?pwerror=mismatch");
     if (next.length < 8)     redirect("/portal/profile?pwerror=short");
 
-    const row = await prisma.member.findUnique({
-      where: { id: memberId },
-      select: { passwordHash: true },
+    // Verify current password before allowing change
+    const member = await prisma.member.findUnique({
+      where:  { id: memberId },
+      select: { email: true, passwordHash: true },
     });
-    if (!row?.passwordHash) redirect("/portal/profile?pwerror=nopass");
+    if (!member?.passwordHash) redirect("/portal/profile?pwerror=nopass");
 
-    const valid = await bcrypt.compare(current, row.passwordHash);
+    const valid = await identity.verifyCredentials(member.email, current);
     if (!valid) redirect("/portal/profile?pwerror=wrong");
 
-    const passwordHash = await bcrypt.hash(next, 12);
-    await prisma.member.update({ where: { id: memberId }, data: { passwordHash } });
+    await identity.setPassword({ memberId, newPassword: next });
     redirect("/portal/profile?pwsaved=1");
   }
 

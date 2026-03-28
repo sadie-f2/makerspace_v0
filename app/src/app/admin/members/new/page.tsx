@@ -1,9 +1,11 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
-import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
+import { identity } from "@/lib/identity";
+import { payment } from "@/lib/payment";
+import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,17 +22,21 @@ export default async function NewMemberPage() {
   async function createMember(formData: FormData) {
     "use server";
     const session = await auth();
+    await requireUnfrozen("/admin/members/new");
     const name = formData.get("name") as string;
     const email = formData.get("email") as string;
     const phone = (formData.get("phone") as string) || null;
     const tierId = (formData.get("tierId") as string) || null;
     const password = formData.get("password") as string;
 
-    const passwordHash = await bcrypt.hash(password || "changeme", 12);
-
     const member = await prisma.member.create({
-      data: { name, email, phone, tierId, passwordHash },
+      data: { name, email, phone, tierId },
     });
+
+    await identity.provisionUser({ memberId: member.id, name, email, initialPassword: password || undefined });
+
+    const stripeCustomerId = await payment.createCustomer({ memberId: member.id, name, email });
+    await prisma.member.update({ where: { id: member.id }, data: { stripeCustomerId } });
 
     await audit({
       actorId: session?.user.id ?? null,

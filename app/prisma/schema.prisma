@@ -71,11 +71,13 @@ model Member {
   passwordHash     String?     // local credentials auth; null when Okta active
   oktaId           String?     @unique
   webId            String?     // Solid/WebID — stored, not interpreted in v1.0
-  stripeCustomerId String?     @unique
-  tierId           String?
-  image            String?
-  role             MemberRole  @default(MEMBER)
-  deletedAt        DateTime?
+  stripeCustomerId  String?     @unique
+  tierId            String?
+  image             String?
+  role              MemberRole  @default(MEMBER)
+  accessSuspended   Boolean     @default(false)
+  accessSuspendedAt DateTime?
+  deletedAt         DateTime?
   deletedById      String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
@@ -244,7 +246,9 @@ model Rental {
   startDate                DateTime
   endDate                  DateTime? // null = ongoing
   monthlyRate              Decimal   @db.Decimal(10, 2)
-  stripeSubscriptionItemId String?
+  stripeSubscriptionId     String?   @unique // Stripe Subscription ID
+  stripeSubscriptionItemId String?           // Stripe SubscriptionItem ID
+  stripeSubscriptionStatus String?           // active | past_due | canceled | etc.
   deletedAt                DateTime?
   deletedById              String?
   createdAt                DateTime  @default(now())
@@ -426,10 +430,14 @@ model AuditLog {
   entityId   String
   before     Json?
   after      Json?
-  note       String?
+  note       String?   // written at mutation time; immutable after creation
+  flagNote   String?   // post-hoc annotation: error flag or correction note
+  undoOfId   String?   // set on action="undo" entries; points to original entry
   ipAddress  String?
 
-  actor Member? @relation("AuditActor", fields: [actorId], references: [id])
+  actor   Member?   @relation("AuditActor", fields: [actorId], references: [id])
+  undoOf  AuditLog? @relation("UndoChain", fields: [undoOfId], references: [id])
+  undone  AuditLog[] @relation("UndoChain")
 }
 
 // ---------------------------------------------------------------------------
