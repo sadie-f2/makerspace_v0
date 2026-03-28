@@ -2,6 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { isSystemFrozen } from "@/lib/freeze";
 
 const navLinks = [
   { href: "/admin", label: "Dashboard" },
@@ -27,6 +28,8 @@ export default async function AdminLayout({
   const session = await auth();
   if (!session) redirect("/login");
 
+  const frozen = await isSystemFrozen();
+
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b px-6 py-3 flex items-center justify-between shrink-0">
@@ -50,6 +53,12 @@ export default async function AdminLayout({
           </form>
         </div>
       </header>
+      {frozen && (
+        <div className="bg-red-600 text-white text-center text-sm py-1.5 px-4 shrink-0">
+          ⚠ System is frozen — write operations are disabled.{" "}
+          <Link href="/admin/settings" className="underline font-medium">Manage in Settings</Link>
+        </div>
+      )}
       <div className="flex flex-1 overflow-hidden">
         <nav className="w-48 bg-gray-50 border-r px-3 py-4 shrink-0">
           <ul className="space-y-1">
