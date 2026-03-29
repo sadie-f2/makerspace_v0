@@ -454,6 +454,7 @@ model AuditLog {
 model SystemConfig {
   id           String   @id @default(cuid())
   systemFreeze Boolean  @default(false)
+  timezone     String   @default("America/New_York") // IANA timezone string
   updatedById  String?
   updatedAt    DateTime @updatedAt
 }

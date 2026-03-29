@@ -26,7 +26,7 @@ async function main() {
   // System config
   // ---------------------------------------------------------------------------
   await prisma.systemConfig.upsert({
-    where: { id: "system" }, update: {}, create: { id: "system", systemFreeze: false },
+    where: { id: "system" }, update: {}, create: { id: "system", systemFreeze: false, timezone: "America/New_York" },
   });
 
   // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ const navLinks = [
   { href: "/portal",                  label: "Home" },
   { href: "/portal/profile",          label: "Profile" },
   { href: "/portal/rentals",          label: "Rentals" },
+  { href: "/portal/bookings",         label: "Bookings" },
   { href: "/portal/waitlist",         label: "Waitlist" },
   { href: "/portal/certifications",   label: "Certifications" },
   { href: "/portal/map",              label: "Map" },

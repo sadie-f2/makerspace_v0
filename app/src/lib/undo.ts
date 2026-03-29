@@ -7,6 +7,7 @@ export const UNDO_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 const UNDOABLE_ENTITIES = new Set([
   "Member",
   "Rental",
+  "Reservation",
   "Certification",
   "MemberPermission",
   "Resource",
@@ -113,6 +114,13 @@ export async function applyUndo(
           } else {
             await tx.resource.update({ where: { id: entityId }, data: cleanSnapshot(before) });
           }
+          break;
+        }
+        case "Reservation": {
+          if (action === "delete") {
+            await tx.reservation.update({ where: { id: entityId }, data: { deletedAt: null, deletedById: null } });
+          }
+          // Undo of create is not supported (no hard-delete)
           break;
         }
         case "WaitlistEntry": {

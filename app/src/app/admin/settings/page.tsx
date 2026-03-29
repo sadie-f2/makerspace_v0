@@ -4,6 +4,8 @@ import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
 import { invalidateFreezeCache } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default async function SettingsGeneralPage({
   searchParams,
@@ -14,7 +16,8 @@ export default async function SettingsGeneralPage({
   const { frozen } = await searchParams;
 
   const config = await prisma.systemConfig.findFirst();
-  const isFrozen = config?.systemFreeze ?? false;
+  const isFrozen  = config?.systemFreeze ?? false;
+  const timezone  = config?.timezone ?? "America/New_York";
 
   const isAdmin = session?.user.role === "ADMIN";
 
@@ -51,6 +54,26 @@ export default async function SettingsGeneralPage({
         : `System unfrozen${reason ? `: ${reason}` : ""}`,
     });
 
+    redirect("/admin/settings");
+  }
+
+  async function updateTimezone(formData: FormData) {
+    "use server";
+    const session = await auth();
+    if (session?.user.role !== "ADMIN") return;
+    const tz = (formData.get("timezone") as string).trim();
+    if (!tz) return;
+    const before = config?.timezone ?? null;
+    if (config) {
+      await prisma.systemConfig.update({ where: { id: config.id }, data: { timezone: tz, updatedById: session.user.id } });
+    } else {
+      await prisma.systemConfig.create({ data: { systemFreeze: false, timezone: tz, updatedById: session.user.id } });
+    }
+    await audit({
+      actorId: session.user.id, actorType: "ADMIN", action: "update",
+      entityType: "SystemConfig", entityId: config?.id ?? "system",
+      before: { timezone: before }, after: { timezone: tz },
+    });
     redirect("/admin/settings");
   }
 
@@ -116,6 +139,30 @@ export default async function SettingsGeneralPage({
               <Button type="submit" size="sm" variant="destructive">Freeze writes</Button>
             </div>
           </form>
+        )}
+      </section>
+
+      {/* ── Timezone ── */}
+      <section className="border rounded p-5">
+        <h3 className="font-medium text-sm mb-1">Facility Timezone</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          IANA timezone string used for booking calendar and time displays (e.g.{" "}
+          <span className="font-mono">America/New_York</span>,{" "}
+          <span className="font-mono">America/Los_Angeles</span>).
+        </p>
+        {!isAdmin ? (
+          <p className="text-xs text-gray-400 italic">Only admin users can change the timezone.</p>
+        ) : (
+          <form action={updateTimezone} className="flex gap-2 items-end">
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="timezone" className="text-xs">Timezone</Label>
+              <Input id="timezone" name="timezone" defaultValue={timezone} className="h-8 text-sm font-mono" />
+            </div>
+            <Button type="submit" size="sm">Save</Button>
+          </form>
+        )}
+        {!isAdmin && (
+          <p className="text-xs text-gray-500 mt-2">Current: <span className="font-mono">{timezone}</span></p>
         )}
       </section>
     </div>
