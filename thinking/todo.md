@@ -75,7 +75,7 @@
 - [x] lib/email.ts — smtp2go via nodemailer, TLS-aware (port 465 SSL / else STARTTLS)
 - [x] Welcome email (admin-triggered from member detail page)
 - [x] Staff can set/reset member password from admin member detail
-- [ ] Delete lib/email.ts (now dead code)
+- [x] Delete lib/email.ts (now dead code)
 - [ ] Wire up SMTP env vars on production server
 
 ## Floor plan / studio — known issues
@@ -103,11 +103,11 @@
 
 - [x] pytest — dxf_to_svg.py geometry + marker logic
 - [x] Vitest — CSV parser, upload diff validation, studio naming
-- [ ] Vitest — lib/permissions.ts hasPermission() cert hierarchy
-- [ ] Vitest — studioSqFt calculation
-- [ ] Vitest — notifications smtp stub-when-unconfigured behavior
-- [ ] Vitest — payment stripe stub-when-unconfigured behavior
-- [ ] Vitest — identity.verifyCredentials returns false for bad password
+- [x] Vitest — lib/permissions.ts hasPermission() cert hierarchy
+- [x] Vitest — studioSqFt calculation
+- [x] Vitest — notifications smtp stub-when-unconfigured behavior
+- [x] Vitest — payment stripe stub-when-unconfigured behavior
+- [x] Vitest — identity.verifyCredentials returns false for bad password
 - [ ] Integration — registration validation (pw mismatch, short, taken)
 - [ ] Integration — proxy route protection
 
