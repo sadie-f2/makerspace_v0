@@ -40,11 +40,12 @@ interface CreateBookingData {
 }
 
 interface Props {
-  date:          string;
-  timezone:      string;
-  resources:     ResourceEntry[];
-  canBook:       boolean;
-  createBooking: (data: CreateBookingData) => Promise<{ error?: string }>;
+  date:             string;
+  timezone:         string;
+  resources:        ResourceEntry[];
+  canBook:          boolean;
+  createBooking?:   (data: CreateBookingData) => Promise<{ error?: string }>;
+  onBookingClick?:  (booking: SerializedBooking, resourceName: string) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -74,7 +75,7 @@ function hourLabel(h: number): string {
 // ── Component ────────────────────────────────────────────────────────────────
 
 export default function BookingMultiView({
-  date, timezone, resources, canBook, createBooking,
+  date, timezone, resources, canBook, createBooking, onBookingClick,
 }: Props) {
   const router     = useRouter();
   const now        = new Date();
@@ -293,10 +294,12 @@ export default function BookingMultiView({
                         const ce = be > new Date(dayStart.getTime() + 86_400_000) ? new Date(dayStart.getTime() + 86_400_000) : be;
                         const clippedStart = bs < dayStart;
                         const clippedEnd   = be > new Date(dayStart.getTime() + 86_400_000);
+                        const clickable = !!onBookingClick;
                         return (
                           <div key={b.id}
                             className={[
-                              "absolute top-1 bg-blue-100 border border-blue-300 rounded text-xs overflow-hidden pointer-events-none",
+                              "absolute top-1 bg-blue-100 border border-blue-300 rounded text-xs overflow-hidden",
+                              clickable ? "cursor-pointer hover:bg-blue-200 pointer-events-auto z-10" : "pointer-events-none",
                               clippedStart ? "border-l-2 border-l-dashed" : "",
                               clippedEnd   ? "border-r-2 border-r-dashed" : "",
                             ].join(" ")}
@@ -305,6 +308,7 @@ export default function BookingMultiView({
                               width:  widthPx(cs, ce) - 2,
                               height: ROW_H - 8,
                             }}
+                            onClick={clickable ? (e) => { e.stopPropagation(); onBookingClick(b, r.name); } : undefined}
                           >
                             <div className="px-1 py-0.5 truncate">
                               <span className="font-medium text-blue-800">{b.memberName}</span>
@@ -343,15 +347,17 @@ export default function BookingMultiView({
         </div>
       </div>
 
-      <BookingDialog
-        open={dialogOpen}
-        onClose={handleDialogClose}
-        initialStart={dialogInitStart}
-        initialEnd={dialogInitEnd}
-        timezone={timezone}
-        resourceId={dialogResourceId}
-        createBooking={createBooking}
-      />
+      {createBooking && (
+        <BookingDialog
+          open={dialogOpen}
+          onClose={handleDialogClose}
+          initialStart={dialogInitStart}
+          initialEnd={dialogInitEnd}
+          timezone={timezone}
+          resourceId={dialogResourceId}
+          createBooking={createBooking}
+        />
+      )}
     </div>
   );
 }
