@@ -8,11 +8,11 @@ export interface FloorPlanDiff {
 /**
  * Compute what changes a new set of spaces would make relative to the DB.
  *
- * @param incomingSpaces - Map<externalId, blockType> parsed from the incoming SVG
+ * @param incomingSpaces - Map<externalId, any> parsed from the incoming SVG (only keys are used)
  * @param dbSpaces       - Current spaces in the DB for this floor plan
  */
 export function computeFloorPlanDiff(
-  incomingSpaces: Map<string, string>,
+  incomingSpaces: Map<string, unknown>,
   dbSpaces: Array<{ externalId: string; resourceId: string | null }>,
 ): FloorPlanDiff {
   const diff: FloorPlanDiff = {

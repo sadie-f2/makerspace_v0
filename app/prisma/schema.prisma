@@ -343,18 +343,21 @@ model DayPass {
 // ---------------------------------------------------------------------------
 
 model SpaceTypeConfig {
-  id         String   @id @default(cuid())
-  slug       String   @unique // permanent internal key — never change once spaces are assigned
-  label      String           // display name; freely editable (e.g. "Shop" → "Lab")
-  parentId   String?          // non-null for subtypes (e.g. storage variants)
-  dxfLayer   String?          // DXF layer name or pattern; null = not directly on floor plan
-  color      String?          // hex fill for floor plan viewer; null = inherit from parent or theme default
-  isBookable Boolean  @default(false)
-  isLeasable Boolean  @default(false)
-  active     Boolean  @default(true)
-  sortOrder  Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                   String   @id @default(cuid())
+  slug                 String   @unique // permanent internal key — never change once spaces are assigned
+  label                String           // display name; freely editable (e.g. "Shop" → "Lab")
+  parentId             String?          // non-null for subtypes (e.g. storage variants)
+  dxfLayer             String?          // DXF layer name or pattern; null = not directly on floor plan
+  dxfBlockPattern      String?          // DXF block name prefix for matching (e.g. "sb-std" matches "sb-std-l", "sb-std-p")
+  color                String?          // hex fill for floor plan viewer; null = inherit from parent or theme default
+  isBookable           Boolean  @default(false)
+  isLeasable           Boolean  @default(false)
+  active               Boolean  @default(true)
+  sortOrder            Int      @default(0)
+  defaultMonthlyRate   Decimal? @db.Decimal(10, 2) // suggested rate when creating a rental of this type
+  membershipRequirement String?          // null = any member; "7x24" = full member required; extensible
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   parent   SpaceTypeConfig?  @relation("SpaceTypeTree", fields: [parentId], references: [id])
   children SpaceTypeConfig[] @relation("SpaceTypeTree")
@@ -409,6 +412,8 @@ model Space {
   blockType   String
   floorPlanId String
   resourceId  String?          // nullable for common areas; multiple units can share one Resource (studio grouping)
+  bayCode     String?          // storage shelf bays only — e.g. "A1"; groups levels of the same physical bay
+  shelfLevel  Int?             // storage shelf bays only — 1 = lowest physical level
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

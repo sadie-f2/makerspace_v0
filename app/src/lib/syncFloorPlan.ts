@@ -23,27 +23,38 @@ export async function syncFloorPlan(floorPlanId: string): Promise<SyncResult> {
 
   const results: SyncResult = { created: 0, existing: 0, total: found.size };
 
-  for (const [externalId, blockType] of found.entries()) {
-    const existing = await prisma.space.findUnique({ where: { externalId } });
+  for (const space of found.values()) {
+    const existing = await prisma.space.findUnique({ where: { externalId: space.externalId } });
     if (existing) {
       results.existing++;
       continue;
     }
-    const name = externalId.replace(/_/g, " ").replace(/:/g, " ").replace(/\s+/g, " ").trim();
+    const name = space.externalId
+      .replace(/_/g, " ")
+      .replace(/:/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     await prisma.space.create({
-      data: { externalId, name, blockType, floorPlanId },
+      data: {
+        externalId:  space.externalId,
+        name,
+        blockType:   space.blockType,
+        floorPlanId,
+        bayCode:     space.bayCode,
+        shelfLevel:  space.shelfLevel,
+      },
     });
     results.created++;
   }
 
   await audit({
-    actorId: null,
-    actorType: "SYSTEM",
-    action: "create",
+    actorId:    null,
+    actorType:  "SYSTEM",
+    action:     "create",
     entityType: "FloorPlan.sync",
-    entityId: floorPlanId,
-    after: { svgPath: fp.svgPath, ...results },
-    note: `Sync: ${results.created} new, ${results.existing} existing, ${found.size} total`,
+    entityId:   floorPlanId,
+    after:      { svgPath: fp.svgPath, ...results },
+    note:       `Sync: ${results.created} new, ${results.existing} existing, ${found.size} total`,
   });
 
   return results;
