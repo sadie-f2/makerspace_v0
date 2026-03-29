@@ -15,13 +15,14 @@ export default async function BookResourcePage({
   searchParams,
 }: {
   params: Promise<{ resourceId: string }>;
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; time?: string }>;
 }) {
   const { resourceId } = await params;
-  const { date: dateParam } = await searchParams;
-  const date = /^\d{4}-\d{2}-\d{2}$/.test(dateParam ?? "") ? dateParam! : todayStr();
+  const { date: dateParam, time: timeParam } = await searchParams;
+  const date        = /^\d{4}-\d{2}-\d{2}$/.test(dateParam ?? "") ? dateParam! : todayStr();
+  const initialTime = /^\d{2}:\d{2}$/.test(timeParam ?? "")        ? timeParam  : undefined;
 
-  const session = await auth();
+  const session  = await auth();
   const memberId = session?.user.id ?? "";
 
   const [resource, member, systemConfig] = await Promise.all([
@@ -43,9 +44,19 @@ export default async function BookResourcePage({
 
   const timezone = systemConfig?.timezone ?? "America/New_York";
 
-  // Day boundaries in UTC (server local — approximate; booking conflict check is exact)
-  const dayStart = new Date(`${date}T00:00:00`);
-  const dayEnd   = new Date(`${date}T23:59:59`);
+  // Siblings — other reservable resources in the same shop
+  const siblings = resource.parentId
+    ? await prisma.resource.findMany({
+        where: { parentId: resource.parentId, deletedAt: null, reservable: true, id: { not: resourceId } },
+        select: { id: true, name: true },
+        orderBy: { name: "asc" },
+      })
+    : [];
+
+  // Day boundaries
+  const [y, m, d] = date.split("-").map(Number);
+  const dayStart = new Date(y, m - 1, d,  0,  0,  0);
+  const dayEnd   = new Date(y, m - 1, d, 23, 59, 59);
 
   const rawBookings = await prisma.reservation.findMany({
     where: {
@@ -66,7 +77,7 @@ export default async function BookResourcePage({
     memberId:   b.memberId,
   }));
 
-  // Determine if member can book
+  // Eligibility check
   let canBook = true;
   let blockReason: string | undefined;
 
@@ -85,25 +96,43 @@ export default async function BookResourcePage({
 
   return (
     <div className="max-w-2xl">
-      <div className="mb-5">
-        <div className="flex items-center gap-2 text-xs text-gray-400 mb-1">
-          <Link href="/portal/book" className="hover:underline">Browse resources</Link>
-          <span>›</span>
-          {resource.parent && (
-            <>
-              <span>{resource.parent.name}</span>
-              <span>›</span>
-            </>
-          )}
-        </div>
-        <h2 className="text-lg font-semibold">{resource.name}</h2>
-        {resource.requiresCertClass && (
-          <p className="text-xs text-gray-500 mt-0.5">
-            Requires: {resource.requiresCertClass.name} certification
-            {canBook && <span className="ml-1 text-green-600">✓ you are certified</span>}
-          </p>
+      {/* Breadcrumb */}
+      <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 flex-wrap">
+        <Link href="/portal/book" className="hover:underline">Browse</Link>
+        {resource.parent && (
+          <>
+            <span>›</span>
+            <span>{resource.parent.name}</span>
+          </>
         )}
       </div>
+
+      <div className="flex items-start justify-between mb-1">
+        <h2 className="text-lg font-semibold">{resource.name}</h2>
+      </div>
+
+      {resource.requiresCertClass && (
+        <p className="text-xs text-gray-500 mb-1">
+          Requires: {resource.requiresCertClass.name} certification
+          {canBook && <span className="ml-1 text-green-600">✓ you are certified</span>}
+        </p>
+      )}
+
+      {/* Siblings in same shop */}
+      {siblings.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap mb-4 mt-2">
+          <span className="text-xs text-gray-400">Also in {resource.parent?.name}:</span>
+          {siblings.map(s => (
+            <Link
+              key={s.id}
+              href={`/portal/book/${s.id}?date=${date}`}
+              className="text-xs text-blue-600 hover:underline border border-blue-200 rounded px-1.5 py-0.5"
+            >
+              {s.name}
+            </Link>
+          ))}
+        </div>
+      )}
 
       <BookingDayView
         resourceId={resourceId}
@@ -112,6 +141,7 @@ export default async function BookResourcePage({
         bookings={bookings}
         canBook={canBook}
         blockReason={blockReason}
+        initialTime={initialTime}
         createBooking={createBooking}
       />
     </div>
