@@ -275,6 +275,13 @@ export default function BookingMultiView({
                   const isPending = pendingStart?.resourceId === r.id;
                   const pendingLeftPx = isPending ? leftPx(pendingStart!.time) : null;
 
+                  // Candidate block — shown while dialog is open for this resource
+                  const isCandidate = dialogOpen && dialogResourceId === r.id;
+                  const candidateLeft  = isCandidate ? leftPx(new Date(dialogInitStart)) : null;
+                  const candidateWidth = isCandidate
+                    ? Math.max(widthPx(new Date(dialogInitStart), new Date(dialogInitEnd)), 4)
+                    : null;
+
                   return (
                     <div key={r.id} className="relative border-b last:border-0"
                       style={{ height: ROW_H }}>
@@ -284,6 +291,14 @@ export default function BookingMultiView({
                           className="absolute top-0 bottom-0 border-l border-gray-100"
                           style={{ left: h * PX_PER_HOUR }} />
                       ))}
+
+                      {/* Candidate block (dialog open) */}
+                      {candidateLeft !== null && candidateWidth !== null && (
+                        <div
+                          className="absolute top-1 bg-blue-200 border-2 border-dashed border-blue-500 rounded pointer-events-none z-10"
+                          style={{ left: candidateLeft + 1, width: candidateWidth - 2, height: ROW_H - 8 }}
+                        />
+                      )}
 
                       {/* Booking blocks */}
                       {r.bookings.map(b => {
