@@ -9,7 +9,8 @@ export async function proxy(req: NextRequest) {
   const csp = [
     `default-src 'self'`,
     // 'strict-dynamic' trusts scripts loaded by the nonced entry script (Next.js lazy chunks)
-    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    // 'unsafe-eval' only in dev — React uses eval() for stack trace reconstruction
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
     // 'unsafe-inline' needed for inline style= attributes (booking calendar positioning)
     `style-src 'self' 'unsafe-inline'`,
     // next/font/google self-hosts at build time → served from 'self'
