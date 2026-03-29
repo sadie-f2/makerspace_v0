@@ -120,10 +120,30 @@ export async function POST(req: Request) {
     }
   }
 
+  // Build config JSON from SpaceTypeConfig DB records and write to tmp
+  const spaceTypes = await prisma.spaceTypeConfig.findMany({
+    where: { active: true, dxfProcessingMode: { not: null } },
+    orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
+  });
+  const configPayload = spaceTypes.map(t => ({
+    slug:             t.slug,
+    mode:             t.dxfProcessingMode,
+    dxfLayer:         t.dxfLayer,
+    dxfLabelLayer:    t.dxfLabelLayer,
+    dxfBlockPattern:  t.dxfBlockPattern,
+    color:            t.color,
+  }));
+  const configArgs: string[] = [];
+  if (configPayload.length > 0) {
+    const configPath = path.join(tmpDir, "space_types.json");
+    await fs.writeFile(configPath, JSON.stringify(configPayload, null, 2));
+    configArgs.push("--config", configPath);
+  }
+
   // Run Python to generate SVG
   const svgTmpPath = path.join(tmpDir, "output.svg");
   try {
-    await runScript([scriptPath, "--input", dxfPath, "--output", svgTmpPath]);
+    await runScript([scriptPath, "--input", dxfPath, "--output", svgTmpPath, ...configArgs]);
   } catch (err) {
     await fs.rm(tmpDir, { recursive: true, force: true });
     return NextResponse.json({ error: `SVG generation failed: ${err}` }, { status: 422 });

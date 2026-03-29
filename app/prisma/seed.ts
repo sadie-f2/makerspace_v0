@@ -44,36 +44,106 @@ async function main() {
   // ---------------------------------------------------------------------------
   // Space type configuration
   // ---------------------------------------------------------------------------
-  // Top-level types first (no parent)
+  // Top-level types first (no parent).
+  // dxfProcessingMode drives which algorithm dxf_to_svg.py uses at import time.
   const topLevelTypes = [
-    { slug: "org",          label: "Organization",  dxfLayer: null,      color: null,      isBookable: false, isLeasable: false, sortOrder: 0 },
-    { slug: "shop",         label: "Shop",          dxfLayer: "shop",    color: "#dbeafe", isBookable: true,  isLeasable: false, sortOrder: 1 },
-    { slug: "tool",         label: "Tool",          dxfLayer: null,      color: null,      isBookable: true,  isLeasable: false, sortOrder: 2 },
-    { slug: "meeting_room", label: "Meeting Room",  dxfLayer: null,      color: "#fef9c3", isBookable: true,  isLeasable: false, sortOrder: 3 },
-    { slug: "studio_unit",  label: "Studio Unit",   dxfLayer: "studio",  color: "#dcfce7", isBookable: false, isLeasable: true,  sortOrder: 4 },
-    { slug: "storage_unit", label: "Storage",       dxfLayer: "storage", color: "#fde8d8", isBookable: false, isLeasable: true,  sortOrder: 5 },
-    { slug: "common_area",  label: "Common Area",   dxfLayer: "common",  color: "#f5f5f5", isBookable: false, isLeasable: false, sortOrder: 6 },
+    {
+      slug: "org",          label: "Organization",  dxfLayer: null,     color: null,
+      isBookable: false, isLeasable: false, sortOrder: 0,
+      dxfProcessingMode: null, dxfLabelLayer: null, dxfBlockPattern: null,
+    },
+    {
+      slug: "shop",         label: "Shop",          dxfLayer: "shop",   color: "#dbeafe",
+      isBookable: true,  isLeasable: false, sortOrder: 1,
+      dxfProcessingMode: "polyline_labeled", dxfLabelLayer: "shop_label", dxfBlockPattern: null,
+    },
+    {
+      slug: "tool",         label: "Tool",          dxfLayer: null,     color: null,
+      isBookable: true,  isLeasable: false, sortOrder: 2,
+      dxfProcessingMode: null, dxfLabelLayer: null, dxfBlockPattern: null,
+    },
+    {
+      slug: "meeting_room", label: "Meeting Room",  dxfLayer: null,     color: "#fef9c3",
+      isBookable: true,  isLeasable: false, sortOrder: 3,
+      dxfProcessingMode: null, dxfLabelLayer: null, dxfBlockPattern: null,
+    },
+    {
+      slug: "studio_unit",  label: "Studio Unit",   dxfLayer: "studio", color: "#dcfce7",
+      isBookable: false, isLeasable: true,  sortOrder: 4,
+      dxfProcessingMode: "insert_numbered", dxfLabelLayer: "studio_label", dxfBlockPattern: null,
+      membershipRequirement: "7x24",
+    },
+    {
+      slug: "storage_unit", label: "Storage",       dxfLayer: null,     color: "#fde8d8",
+      isBookable: false, isLeasable: false, sortOrder: 5,
+      dxfProcessingMode: null, dxfLabelLayer: null, dxfBlockPattern: null,
+    },
+    {
+      slug: "common_area",  label: "Common Area",   dxfLayer: "common", color: "#f5f5f5",
+      isBookable: false, isLeasable: false, sortOrder: 6,
+      dxfProcessingMode: "polyline_labeled", dxfLabelLayer: "common_label", dxfBlockPattern: null,
+    },
   ];
   const typeMap: Record<string, string> = {};
   for (const t of topLevelTypes) {
     const row = await prisma.spaceTypeConfig.upsert({
-      where: { slug: t.slug },
-      update: {},
+      where:  { slug: t.slug },
+      update: {
+        dxfProcessingMode: t.dxfProcessingMode,
+        dxfLabelLayer:     t.dxfLabelLayer,
+        dxfBlockPattern:   t.dxfBlockPattern ?? null,
+        membershipRequirement: (t as any).membershipRequirement ?? null,
+      },
       create: t,
     });
     typeMap[t.slug] = row.id;
   }
 
-  // Storage subtypes (children of storage_unit)
+  // Storage subtypes — one record per rentable storage class.
+  // Shelf sizes each get their own entry so pricing can differ per size.
+  // Additional shelf sizes can be added at runtime via /admin/settings/space-types.
   const storageSubtypes = [
-    { slug: "storage_pallet",    label: "Pallet",    dxfLayer: "storage",  color: null, isBookable: false, isLeasable: true, sortOrder: 0 },
-    { slug: "storage_shelf",     label: "Shelf",     dxfLayer: "shelf_l*", color: null, isBookable: false, isLeasable: true, sortOrder: 1 },
-    { slug: "storage_tool_cart", label: "Tool Cart", dxfLayer: "storage",  color: null, isBookable: false, isLeasable: true, sortOrder: 2 },
+    {
+      slug: "storage_pallet",   label: "Pallet",
+      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "pallet",
+      dxfProcessingMode: "insert_coded",
+      color: null, isBookable: false, isLeasable: true, sortOrder: 0,
+    },
+    {
+      slug: "storage_locker",   label: "Locker",
+      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "lkr",
+      dxfProcessingMode: "insert_coded",
+      color: null, isBookable: false, isLeasable: true, sortOrder: 1,
+    },
+    {
+      slug: "storage_cart",     label: "Tool Cart",
+      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "tc",
+      dxfProcessingMode: "insert_coded",
+      color: null, isBookable: false, isLeasable: true, sortOrder: 2,
+    },
+    // Shelf sizes — one entry per physical size, each with its own block pattern.
+    // The dxfLayer is the prefix; the script appends the level number (shelf_l1, shelf_l2, …).
+    {
+      slug: "shelf_standard",   label: "Shelf — Standard",
+      dxfLayer: "shelf_l",  dxfLabelLayer: "storage_label", dxfBlockPattern: "sb-std",
+      dxfProcessingMode: "insert_multilevel",
+      color: null, isBookable: false, isLeasable: true, sortOrder: 3,
+    },
+    {
+      slug: "shelf_wide",       label: "Shelf — Wide",
+      dxfLayer: "shelf_l",  dxfLabelLayer: "storage_label", dxfBlockPattern: "sb-wide",
+      dxfProcessingMode: "insert_multilevel",
+      color: null, isBookable: false, isLeasable: true, sortOrder: 4,
+    },
   ];
   for (const t of storageSubtypes) {
     await prisma.spaceTypeConfig.upsert({
-      where: { slug: t.slug },
-      update: {},
+      where:  { slug: t.slug },
+      update: {
+        dxfProcessingMode: t.dxfProcessingMode,
+        dxfLabelLayer:     t.dxfLabelLayer,
+        dxfBlockPattern:   t.dxfBlockPattern,
+      },
       create: { ...t, parentId: typeMap["storage_unit"] },
     });
   }

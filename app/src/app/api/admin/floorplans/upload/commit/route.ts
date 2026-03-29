@@ -86,6 +86,26 @@ export async function POST(req: Request) {
   const scriptPath = path.join(process.cwd(), "tools", "dxf_to_svg.py");
   const labeledDxfTmp = path.join(os.tmpdir(), `labeled-${revision.id}.dxf`);
 
+  // Build config from DB (same logic as preview route)
+  const spaceTypes = await prisma.spaceTypeConfig.findMany({
+    where: { active: true, dxfProcessingMode: { not: null } },
+    orderBy: [{ sortOrder: "asc" }, { slug: "asc" }],
+  });
+  const configArgs: string[] = [];
+  if (spaceTypes.length > 0) {
+    const configPayload = spaceTypes.map(t => ({
+      slug:            t.slug,
+      mode:            t.dxfProcessingMode,
+      dxfLayer:        t.dxfLayer,
+      dxfLabelLayer:   t.dxfLabelLayer,
+      dxfBlockPattern: t.dxfBlockPattern,
+      color:           t.color,
+    }));
+    const configPath = path.join(os.tmpdir(), `space-types-${revision.id}.json`);
+    await fs.writeFile(configPath, JSON.stringify(configPayload, null, 2));
+    configArgs.push("--config", configPath);
+  }
+
   try {
     await runScript([
       scriptPath,
@@ -93,6 +113,7 @@ export async function POST(req: Request) {
       "--output",     svgAbsPath,   // regenerate in-place (idempotent)
       "--output-dxf", labeledDxfTmp,
       "--marker",     marker,
+      ...configArgs,
     ]);
   } catch (err) {
     // Clean up revision and SVG, re-throw

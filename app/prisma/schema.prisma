@@ -347,8 +347,10 @@ model SpaceTypeConfig {
   slug                 String   @unique // permanent internal key — never change once spaces are assigned
   label                String           // display name; freely editable (e.g. "Shop" → "Lab")
   parentId             String?          // non-null for subtypes (e.g. storage variants)
-  dxfLayer             String?          // DXF layer name or pattern; null = not directly on floor plan
-  dxfBlockPattern      String?          // DXF block name prefix for matching (e.g. "sb-std" matches "sb-std-l", "sb-std-p")
+  dxfLayer             String?          // DXF layer name (or base prefix for multilevel); null = not on floor plan
+  dxfBlockPattern      String?          // DXF block name prefix for INSERT matching (e.g. "sb-std" matches "sb-std-l", "sb-std-p")
+  dxfLabelLayer        String?          // DXF layer holding TEXT labels/codes for this type (e.g. "studio_label", "storage_label")
+  dxfProcessingMode    String?          // "insert_numbered" | "insert_coded" | "insert_multilevel" | "polyline_labeled"
   color                String?          // hex fill for floor plan viewer; null = inherit from parent or theme default
   isBookable           Boolean  @default(false)
   isLeasable           Boolean  @default(false)
