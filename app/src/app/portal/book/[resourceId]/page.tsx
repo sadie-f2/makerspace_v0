@@ -3,7 +3,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import BookingDayView, { type SerializedBooking } from "@/components/BookingDayView";
-import BookingGridView from "@/components/BookingGridView";
 import { createBooking } from "../actions";
 
 function todayStr(): string {
@@ -16,13 +15,12 @@ export default async function BookResourcePage({
   searchParams,
 }: {
   params: Promise<{ resourceId: string }>;
-  searchParams: Promise<{ date?: string; time?: string; view?: string }>;
+  searchParams: Promise<{ date?: string; time?: string }>;
 }) {
   const { resourceId } = await params;
-  const { date: dateParam, time: timeParam, view: viewParam } = await searchParams;
+  const { date: dateParam, time: timeParam } = await searchParams;
   const date        = /^\d{4}-\d{2}-\d{2}$/.test(dateParam ?? "") ? dateParam! : todayStr();
   const initialTime = /^\d{2}:\d{2}$/.test(timeParam ?? "")        ? timeParam  : undefined;
-  const view        = viewParam === "grid" ? "grid" : "list";
 
   const session  = await auth();
   const memberId = session?.user.id ?? "";
@@ -96,12 +94,8 @@ export default async function BookResourcePage({
     }
   }
 
-  const sharedProps = {
-    resourceId, date, timezone, bookings, canBook, blockReason, initialTime, createBooking,
-  };
-
   return (
-    <div className={view === "grid" ? "max-w-4xl" : "max-w-2xl"}>
+    <div className="max-w-2xl">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-gray-400 mb-1 flex-wrap">
         <Link href="/portal/book" className="hover:underline">Browse</Link>
@@ -124,42 +118,36 @@ export default async function BookResourcePage({
         </p>
       )}
 
-      {/* Siblings in same shop */}
-      {siblings.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap mb-3 mt-2">
-          <span className="text-xs text-gray-400">Also in {resource.parent?.name}:</span>
-          {siblings.map(s => (
-            <Link
-              key={s.id}
-              href={`/portal/book/${s.id}?date=${date}&view=${view}`}
-              className="text-xs text-blue-600 hover:underline border border-blue-200 rounded px-1.5 py-0.5"
-            >
-              {s.name}
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* View toggle */}
-      <div className="flex items-center gap-1 mb-4">
-        <Link
-          href={`?date=${date}&view=list`}
-          className={`text-xs px-2.5 py-1 rounded border ${view === "list" ? "bg-gray-100 border-gray-300 font-medium" : "border-transparent text-gray-400 hover:text-gray-600"}`}
-        >
-          List
-        </Link>
-        <Link
-          href={`?date=${date}&view=grid`}
-          className={`text-xs px-2.5 py-1 rounded border ${view === "grid" ? "bg-gray-100 border-gray-300 font-medium" : "border-transparent text-gray-400 hover:text-gray-600"}`}
-        >
-          Calendar
+      {/* Siblings + calendar link */}
+      <div className="flex items-center gap-2 flex-wrap mb-4 mt-2">
+        {siblings.length > 0 && (
+          <>
+            <span className="text-xs text-gray-400">Also in {resource.parent?.name}:</span>
+            {siblings.map(s => (
+              <Link key={s.id} href={`/portal/book/${s.id}?date=${date}`}
+                className="text-xs text-blue-600 hover:underline border border-blue-200 rounded px-1.5 py-0.5">
+                {s.name}
+              </Link>
+            ))}
+            <span className="text-gray-200">|</span>
+          </>
+        )}
+        <Link href={`/portal/book?date=${date}&view=calendar`}
+          className="text-xs text-gray-400 hover:text-gray-600 hover:underline">
+          ← All resources calendar
         </Link>
       </div>
 
-      {view === "grid"
-        ? <BookingGridView {...sharedProps} />
-        : <BookingDayView  {...sharedProps} />
-      }
+      <BookingDayView
+        resourceId={resourceId}
+        date={date}
+        timezone={timezone}
+        bookings={bookings}
+        canBook={canBook}
+        blockReason={blockReason}
+        initialTime={initialTime}
+        createBooking={createBooking}
+      />
     </div>
   );
 }
