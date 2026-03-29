@@ -64,12 +64,12 @@ function addDays(dateStr: string, n: number): string {
 function slotsInRange(start: Date, end: Date): Date[] {
   const slots: Date[] = [];
   let cur = new Date(start);
-  while (cur < end) { slots.push(new Date(cur)); cur = new Date(cur.getTime() + 30 * 60 * 1000); }
+  while (cur < end) { slots.push(new Date(cur)); cur = new Date(cur.getTime() + 15 * 60 * 1000); }
   return slots;
 }
 
-function roundUpTo30(d: Date): Date {
-  const ms = 30 * 60 * 1000;
+function roundUpTo15(d: Date): Date {
+  const ms = 15 * 60 * 1000;
   return new Date(Math.ceil(d.getTime() / ms) * ms);
 }
 
@@ -130,7 +130,7 @@ export default function BookingDayView({
     const target = parseLocalDate(date); target.setHours(h, m, 0, 0);
     const fb = blocks.find(b => b.type === "free" && b.start <= target && b.end > target) as FreeBlock | undefined;
     if (!fb) return null;
-    const earliest = fb.start < now ? roundUpTo30(now) : fb.start;
+    const earliest = fb.start < now ? roundUpTo15(now) : fb.start;
     if (earliest >= fb.end) return null;
     const defEnd = new Date(earliest.getTime() + 60 * 60 * 1000);
     return {
@@ -169,7 +169,7 @@ export default function BookingDayView({
 
   function openForm(fb: FreeBlock) {
     if (!canBook) return;
-    const earliest = fb.start < now ? roundUpTo30(now) : fb.start;
+    const earliest = fb.start < now ? roundUpTo15(now) : fb.start;
     if (earliest >= fb.end) return;
     setOpenFreeStart(fb.start.toISOString());
     setFormStart(earliest.toISOString());
@@ -320,13 +320,13 @@ export default function BookingDayView({
           // Free block
           const isFuture  = block.end > now;
           const isOpen    = openFreeStart === block.start.toISOString();
-          const earliest  = block.start < now ? roundUpTo30(now) : block.start;
+          const earliest  = block.start < now ? roundUpTo15(now) : block.start;
           const startSlots = slotsInRange(earliest, block.end);
           const selectedStart = formStart ? new Date(formStart) : null;
           const endSlots = selectedStart && isOpen
             ? slotsInRange(
-                new Date(selectedStart.getTime() + 30 * 60 * 1000),
-                new Date(block.end.getTime() + 1),
+                new Date(selectedStart.getTime() + 15 * 60 * 1000),
+                block.end,
               )
             : [];
 
