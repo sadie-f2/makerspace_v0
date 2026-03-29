@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import BookingDayView, { type SerializedBooking } from "@/components/BookingDayView";
 import BookingGridView from "@/components/BookingGridView";
-import { createBooking } from "./actions";
+import { createBooking } from "../actions";
 
 function todayStr(): string {
   const d = new Date();
