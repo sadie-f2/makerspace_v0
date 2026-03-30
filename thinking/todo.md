@@ -16,6 +16,15 @@
 - [x] Studios page — floor plan always visible, click highlights row in list
 - [x] CSV studio import with preview table
 
+## Certifications & Equipment Classes
+
+- [ ] Audit: confirm cert-check in booking eligibility uses `requiresCertClassId` on resource (class-level, not per-tool)
+- [ ] Cert propagation: if a parent resource (shop) has `requiresCertClassId`, children (tools) should inherit the gate — currently unclear if booking check traverses parent
+- [ ] Admin UI: warning dialog when granting cert via a shop-level class ("This grants access to all tools in this shop")
+- [ ] Admin equipment class page: show which resources are linked to each class
+- [ ] Booking: display cert class name in "certification required" message, not just boolean
+- [ ] Public map: consider whether to show tenant names to unauthenticated users long-term (currently yes — intentional per current design)
+
 ## Roles & Permissions
 
 - [x] VOLUNTEER role added to MemberRole enum
@@ -43,7 +52,8 @@
 - [x] Rentals page — active rentals, request new space (→ waitlist if none), cancel pending
 - [x] Waitlist page — join, view status, withdraw
 - [x] Certifications page — own certs + searchable member directory
-- [x] Map page — floor plan with tenant names
+- [x] Map page — floor plan with tenant names (portal, members only)
+- [x] Public map page — `/map` route, no auth required, "Member login →" link
 - [x] Day pass page — request + history (Stripe TBD)
 - [x] Admin/staff portal link in admin header
 - [ ] Booking/reservations — deferred to next session
