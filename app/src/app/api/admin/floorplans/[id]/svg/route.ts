@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readFile } from "fs/promises";
 import path from "path";
-import { requireAdminApi } from "@/lib/requireAdminApi";
 
 const FILL = {
   vacant:   "#bbf7d0",
@@ -25,8 +24,6 @@ export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const denied = await requireAdminApi();
-  if (denied) return denied;
   const { id } = await params;
 
   const fp = await prisma.floorPlan.findUnique({
