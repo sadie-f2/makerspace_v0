@@ -109,6 +109,17 @@
 - [ ] Restore UI for soft-deleted records (browse + undelete)
 - [x] IP address population in audit entries — `getClientIp()` in `lib/audit.ts`, reads `x-forwarded-for` / `x-real-ip`, degrades to null outside request context
 
+## Accessibility (quick wins)
+
+- [ ] `aria-label` on icon-only buttons — zoom ±/reset in FloorPlanViewer, ← Prev / Next → in booking views
+- [ ] `aria-expanded` + `aria-controls` on toggle buttons — floor plan expand/collapse in StorageFloorPlan / StudioFloorPlan
+- [ ] `role="tablist"` / `role="tab"` + `aria-selected` on floor plan selector buttons (building/floor tabs)
+- [ ] `role="alert"` on inline error messages; `aria-describedby` linking error text to the relevant input
+- [ ] `aria-live="polite"` on dynamic status text — booking pending-start instructions, unit-count feedback
+- [ ] `role="alert"` + `aria-live="assertive"` on the system-frozen banner in admin layout
+- [ ] `aria-label` on `<nav>` landmarks in admin and portal layouts
+- [ ] `aria-current="page"` on active nav links in admin and portal layouts
+
 ## Tests
 
 - [x] pytest — dxf_to_svg.py geometry + marker logic
