@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
 import { readFile } from "fs/promises";
 import path from "path";
 
@@ -20,10 +21,15 @@ function escapeAttr(s: string): string {
     .replace(/>/g, "&gt;");
 }
 
+// Block types whose occupancy is private — not shown to unauthenticated viewers
+const PRIVATE_TYPES = new Set(["studio", "storage_unit"]);
+
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth();
+  const isAuthenticated = !!session?.user;
   const { id } = await params;
 
   const fp = await prisma.floorPlan.findUnique({
@@ -67,10 +73,16 @@ export async function GET(
     if (!space) return base;
 
     const extras: string[] = [];
+    const isPrivate = PRIVATE_TYPES.has(space.blockType);
     if (space.resourceId)       extras.push(`data-resource-id="${space.resourceId}"`);
-    if (space.resource?.name)   extras.push(`data-resource-name="${escapeAttr(space.resource.name)}"`);
-    const occupant = space.resource?.rentals[0]?.member.name;
-    if (occupant)               extras.push(`data-occupant="${escapeAttr(occupant)}"`);
+    // Resource name and occupant are hidden for private space types when unauthenticated
+    if (isAuthenticated || !isPrivate) {
+      if (space.resource?.name) extras.push(`data-resource-name="${escapeAttr(space.resource.name)}"`);
+    }
+    if (isAuthenticated) {
+      const occupant = space.resource?.rentals[0]?.member.name;
+      if (occupant)             extras.push(`data-occupant="${escapeAttr(occupant)}"`);
+    }
 
     return extras.length > 0 ? `${base} ${extras.join(" ")}` : base;
   });
@@ -80,12 +92,13 @@ export async function GET(
   for (const space of fp.spaces) {
     const type = space.blockType;
     let fill: string;
-    if (type === "common_area")              fill = FILL.common;
-    else if (type === "shop")                fill = FILL.shop;
-    else if (!space.resourceId)              fill = FILL.unlinked;
-    else if (space.resource?.rentals[0])      fill = FILL.occupied;
-    else if (type === "storage_unit")        fill = FILL.storage;
-    else                                     fill = FILL.vacant;
+    if (type === "common_area")                              fill = FILL.common;
+    else if (type === "shop")                                fill = FILL.shop;
+    else if (!space.resourceId)                              fill = FILL.unlinked;
+    else if (!isAuthenticated && PRIVATE_TYPES.has(type))    fill = FILL.unlinked; // occupancy hidden
+    else if (space.resource?.rentals[0])                     fill = FILL.occupied;
+    else if (type === "storage_unit")                        fill = FILL.storage;
+    else                                                     fill = FILL.vacant;
 
     cssRules.push(`[data-space-id="${space.externalId}"] { fill: ${fill} !important; }`);
   }
