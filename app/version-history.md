@@ -2,17 +2,6 @@
 
 ## v0.3.2 — 2026-03-30 (commit `5b43e21`)
 
-### Storage Management
-- New `/admin/storage` page with DXF import pipeline for bay/level assignment
-- `SpaceTypeConfig` extended with storage-specific fields
-- `Space` model gains `bay` and `level` fields
-- `/api/admin/storage/import` route for processing uploaded DXF files
-
-### Floor Plan Viewer
-- Pan and zoom with mouse and touch support
-- SVG rendered from parsed DXF data
-- Revision history with per-revision DXF download
-
 ### Bookings / Reservations
 - Full booking system: per-resource day view, multi-resource horizontal calendar, vertical grid view
 - Admin cancel/manage view
@@ -38,6 +27,43 @@
 
 ---
 
+## v0.3.1 — 2026-03-29 (commit `f341810`)
+
+Defined by floorplan-spec-v0.3.1.md (written Mar 28 18:26). Covers abstraction layer
+introduction, system freeze, floor plan enhancements, and storage management.
+
+### Abstraction Layers
+- Notifications layer (email/future channels decoupled from call sites)
+- Payment layer (Stripe integration behind interface)
+- Identity layer (Auth.js session access centralized)
+- Access Control layer (role checks centralized)
+- All existing call sites wired to new layers
+
+### System Freeze
+- Admin settings toggle to freeze all write operations
+- Freeze enforced across every admin mutating server action
+- Banner displayed in admin layout when frozen
+
+### Data Integrity Enhancements
+- Audit log: IP address logging added
+- Undo conventions documented
+- Out-of-band DB fix procedure established
+
+### Floor Plan Viewer
+- Pan and zoom with mouse drag and touch/pinch support
+
+### Storage Management
+- `SpaceTypeConfig` extended with storage-specific fields
+- `Space` model gains `bay` and `level` fields
+- Config-driven DXF import: `SpaceTypeConfig` drives all floor plan processing
+- `/admin/storage` page with floor plan view, management table, and import panel
+
+### Test Coverage
+- Vitest tests for abstraction layers and studioGeometry lib
+- `studioGeometry` utility extracted from inline calculations
+
+---
+
 ## v0.3.0 — 2026-03-28 (commit `a2ba4d3`)
 
 Initial coded implementation. Feature specs v0.1–v0.2.1 were written Feb–Mar 2026; code
@@ -56,7 +82,7 @@ capture design decisions made during construction.
 - `/admin/members` — member management, role assignment
 - `/admin/rental-requests` — review and approve incoming rental applications
 - `/admin/waitlist` — waitlist management
-- `/admin/floorplans` — floor plan upload, revision history, interactive SVG viewer (pan/zoom)
+- `/admin/floorplans` — floor plan upload, revision history, interactive SVG viewer
 - `/admin/resources` and `/admin/equipment` — resource/equipment catalog
 - Append-only audit log on all admin server actions
 
