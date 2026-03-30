@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 
 export default async function TierSettingsPage() {
+  await requireStaff();
   const tiers = await prisma.memberTier.findMany({ orderBy: { sortOrder: "asc" } });
 
   async function toggleActive(formData: FormData) {

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { audit } from "@/lib/audit";
 import { invalidateFreezeCache } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ export default async function SettingsGeneralPage({
 }: {
   searchParams: Promise<{ frozen?: string }>;
 }) {
+  await requireStaff();
   const session = await auth();
   const { frozen } = await searchParams;
 

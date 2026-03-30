@@ -108,7 +108,6 @@ export default async function AdminBookingsPage({
       startAt:    b.startAt.toISOString(),
       endAt:      b.endAt.toISOString(),
       memberName: b.member.name,
-      memberId:   b.memberId,
     })),
   }));
 

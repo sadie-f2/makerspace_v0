@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import StudioImport from "@/components/StudioImport";
 import StudioFloorPlan from "@/components/StudioFloorPlan";
 
 export default async function StudiosPage() {
+  await requireStaff();
   const [studios, unlinkedSpaces, floorPlans] = await Promise.all([
     prisma.resource.findMany({
       where: { typeTag: { in: ["studio_unit", "studio"] }, deletedAt: null },

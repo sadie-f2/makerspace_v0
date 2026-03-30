@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 interface ImportRow {
   studioName: string;
@@ -11,6 +12,8 @@ interface ImportRow {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { rows }: { rows: ImportRow[] } = await req.json();
   const validRows = rows.filter(r => r.errors.length === 0 && r.studioName && r.unitIds.length > 0);
 

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import FloorPlanUpload from "@/components/FloorPlanUpload";
@@ -9,6 +10,7 @@ export default async function FloorPlansPage({
 }: {
   searchParams: Promise<{ skipMarkerFor?: string }>;
 }) {
+  await requireStaff();
   const { skipMarkerFor } = await searchParams;
   const floorPlans = await prisma.floorPlan.findMany({
     orderBy: [{ building: "asc" }, { floor: "asc" }],

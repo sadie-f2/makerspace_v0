@@ -85,7 +85,6 @@ export default async function BookPage({
         startAt:    b.startAt.toISOString(),
         endAt:      b.endAt.toISOString(),
         memberName: b.member.name,
-        memberId:   b.memberId,
       })),
     }));
 

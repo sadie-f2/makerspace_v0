@@ -2,12 +2,14 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { audit } from "@/lib/audit";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default async function WaitlistPage() {
+  await requireStaff();
   const session = await auth();
 
   const [waiting, availableResources, recentlyActioned] = await Promise.all([

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ export default async function EditTierPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireStaff();
   const { id } = await params;
   const tier = await prisma.memberTier.findUnique({ where: { id } });
   if (!tier) notFound();

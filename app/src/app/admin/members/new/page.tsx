@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { auth } from "@/auth";
 import { audit } from "@/lib/audit";
 import { identity } from "@/lib/identity";
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui/select";
 
 export default async function NewMemberPage() {
+  await requireStaff();
   const tiers = await prisma.memberTier.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },

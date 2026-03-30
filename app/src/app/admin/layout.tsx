@@ -3,22 +3,33 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { isSystemFrozen } from "@/lib/freeze";
+import type { MemberRole } from "@/generated/prisma/enums";
 
-const navLinks = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/members", label: "Members" },
-  { href: "/admin/rental-requests", label: "Rental Requests" },
-  { href: "/admin/waitlist", label: "Waitlist" },
-  { href: "/admin/studios", label: "Studios" },
-  { href: "/admin/storage", label: "Storage" },
-  { href: "/admin/equipment", label: "Equipment" },
+// Links visible to all admin-eligible roles (VOLUNTEER, STAFF, ADMIN)
+const volunteerLinks = [
+  { href: "/admin",           label: "Dashboard" },
   { href: "/admin/resources", label: "Resources" },
-  { href: "/admin/floorplans", label: "Floor Plans" },
-  { href: "/admin/bookings", label: "Bookings" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/audit", label: "Audit" },
-  { href: "/admin/settings", label: "Settings" },
+  { href: "/admin/equipment", label: "Equipment" },
+  { href: "/admin/bookings",  label: "Bookings" },
 ];
+
+// Additional links for STAFF and ADMIN only
+const staffLinks = [
+  { href: "/admin/members",          label: "Members" },
+  { href: "/admin/rental-requests",  label: "Rental Requests" },
+  { href: "/admin/waitlist",         label: "Waitlist" },
+  { href: "/admin/studios",          label: "Studios" },
+  { href: "/admin/storage",          label: "Storage" },
+  { href: "/admin/floorplans",       label: "Floor Plans" },
+  { href: "/admin/reports",          label: "Reports" },
+  { href: "/admin/audit",            label: "Audit" },
+  { href: "/admin/settings",         label: "Settings" },
+];
+
+function navLinksForRole(role: MemberRole) {
+  if (role === "STAFF" || role === "ADMIN") return [...volunteerLinks, ...staffLinks];
+  return volunteerLinks;
+}
 
 export default async function AdminLayout({
   children,
@@ -26,9 +37,13 @@ export default async function AdminLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  if (!session) redirect("/login");
+
+  // MEMBER role has no admin access; unauthenticated users go to login
+  if (!session?.user) redirect("/login");
+  if (session.user.role === "MEMBER") redirect("/portal");
 
   const frozen = await isSystemFrozen();
+  const navLinks = navLinksForRole(session.user.role);
 
   return (
     <div className="min-h-screen flex flex-col">

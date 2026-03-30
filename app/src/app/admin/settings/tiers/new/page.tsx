@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,7 +15,9 @@ const PERMISSION_FIELDS = [
   { name: "buildingAccess", label: "24/7 building fob access",defaultChecked: true  },
 ] as const;
 
-export default function NewTierPage() {
+export default async function NewTierPage() {
+  await requireStaff();
+
   async function createTier(formData: FormData) {
     "use server";
     await requireUnfrozen("/admin/settings/tiers");

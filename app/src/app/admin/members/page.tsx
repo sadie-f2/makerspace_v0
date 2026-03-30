@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -11,6 +12,7 @@ export default async function MembersPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
+  await requireStaff();
   const { q: raw } = await searchParams;
   const q = raw?.trim() ?? "";
 

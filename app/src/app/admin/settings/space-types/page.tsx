@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { audit } from "@/lib/audit";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ const PROCESSING_MODES = [
 ];
 
 export default async function SpaceTypesPage() {
+  await requireStaff();
   const session = await auth();
   const actorId = session?.user.id ?? null;
 

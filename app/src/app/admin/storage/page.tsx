@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import { Badge } from "@/components/ui/badge";
 import StorageFloorPlan from "@/components/StorageFloorPlan";
 import StorageImport, { type UnlinkedSpace } from "@/components/StorageImport";
 
 export default async function StoragePage() {
+  await requireStaff();
   // Resolve storage type slugs dynamically from SpaceTypeConfig
   const storageParent = await prisma.spaceTypeConfig.findUnique({ where: { slug: "storage_unit" } });
   const storageTypeConfigs = storageParent

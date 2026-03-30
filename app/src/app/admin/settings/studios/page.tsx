@@ -1,10 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
+import { requireStaff } from "@/lib/requireStaff";
 import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default async function StudioSettingsPage() {
+  await requireStaff();
   const sizes = await prisma.studioSize.findMany({ orderBy: { unitCount: "asc" } });
 
   async function addSize(formData: FormData) {

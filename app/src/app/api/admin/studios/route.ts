@@ -2,8 +2,11 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { parseStudioName } from "@/lib/studioNaming";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { name, unitIds }: { name: string; unitIds: string[] } = await req.json();
 
   // Validate name format

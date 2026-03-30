@@ -2,11 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { parseStudioName } from "@/lib/studioNaming";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 export async function PUT(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { id } = await params;
   const { unitIds, name }: { unitIds: string[]; name?: string } = await req.json();
 
@@ -79,6 +82,8 @@ export async function DELETE(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { id } = await params;
   const studio = await prisma.resource.findUnique({
     where: { id, deletedAt: null },

@@ -74,7 +74,6 @@ export default async function BookResourcePage({
     startAt:    b.startAt.toISOString(),
     endAt:      b.endAt.toISOString(),
     memberName: b.member.name,
-    memberId:   b.memberId,
   }));
 
   // Eligibility check

@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import StudioCreateForm from "@/components/StudioCreateForm";
 
 export default async function NewStudioPage() {
+  await requireStaff();
   const [floorPlans, existingStudios, allowedSizes] = await Promise.all([
     prisma.floorPlan.findMany({
       where: { spaces: { some: { blockType: "studio_unit" } } },

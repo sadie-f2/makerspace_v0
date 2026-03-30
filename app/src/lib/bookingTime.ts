@@ -7,7 +7,6 @@ export interface SerializedBooking {
   startAt: string; // ISO
   endAt: string;   // ISO
   memberName: string;
-  memberId: string;
 }
 
 export interface FreeBlock   { type: "free";   start: Date; end: Date }

@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { audit } from "@/lib/audit";
 import { identity } from "@/lib/identity";
 import { access } from "@/lib/access";
@@ -26,6 +27,7 @@ export default async function MemberDetailPage({
   params: Promise<{ id: string }>;
   searchParams: { pwreset?: string };
 }) {
+  await requireStaff();
   const { id } = await params;
   const session = await auth();
   const actorRole = session?.user.role as ValidRole | undefined;

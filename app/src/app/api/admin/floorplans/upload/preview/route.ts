@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseSpacesFromSvg } from "@/lib/parseSpacesFromSvg";
 import { computeFloorPlanDiff } from "@/lib/computeFloorPlanDiff";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 import { spawn } from "child_process";
 import { randomUUID } from "crypto";
 import path from "path";
@@ -42,6 +43,8 @@ export interface PreviewMeta {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const formData = await req.formData();
   const intent          = formData.get("intent") as "new" | "revision" | null;
   const file            = formData.get("dxf") as File | null;

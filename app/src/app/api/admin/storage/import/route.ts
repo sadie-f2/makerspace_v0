@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 interface ImportItem {
   spaceExternalId: string;
@@ -9,6 +10,8 @@ interface ImportItem {
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { items } = await req.json() as { items: ImportItem[] };
   if (!Array.isArray(items) || items.length === 0) {
     return NextResponse.json({ error: "items array required" }, { status: 400 });

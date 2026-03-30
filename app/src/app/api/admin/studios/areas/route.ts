@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { buildAreaMap } from "@/lib/studioNaming";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 export async function GET() {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const studios = await prisma.resource.findMany({
     where: { typeTag: "studio_unit", deletedAt: null },
     select: { name: true },

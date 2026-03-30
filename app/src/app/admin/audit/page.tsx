@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { isUndoable, applyUndo, UNDO_WINDOW_MS } from "@/lib/undo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export default async function AuditPage({
     flagged?: string;
   }>;
 }) {
+  await requireStaff();
   const session = await auth();
   const { entity, entityId, actor, undoError, flagged } = await searchParams;
 

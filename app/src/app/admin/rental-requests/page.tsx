@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
+import { requireStaff } from "@/lib/requireStaff";
 import { audit } from "@/lib/audit";
 import { payment } from "@/lib/payment";
 import { notify } from "@/lib/notifications";
@@ -10,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 export default async function RentalRequestsPage() {
+  await requireStaff();
   const session = await auth();
 
   const [pending, recent] = await Promise.all([

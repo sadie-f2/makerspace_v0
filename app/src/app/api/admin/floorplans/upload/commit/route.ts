@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { syncFloorPlan } from "@/lib/syncFloorPlan";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs/promises";
@@ -24,6 +25,8 @@ function runScript(args: string[]): Promise<{ stdout: string; stderr: string }> 
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const { previewToken } = await req.json() as { previewToken: string };
   if (!previewToken) {
     return NextResponse.json({ error: "previewToken required" }, { status: 400 });

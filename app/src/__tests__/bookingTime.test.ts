@@ -14,7 +14,6 @@ function makeBooking(overrides: Partial<SerializedBooking> & { startAt: string; 
   return {
     id: "b1",
     memberName: "Alice",
-    memberId: "m1",
     ...overrides,
   };
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { audit } from "@/lib/audit";
 import { syncFloorPlan } from "@/lib/syncFloorPlan";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 import { spawn } from "child_process";
 import path from "path";
 import fs from "fs/promises";
@@ -22,6 +23,8 @@ function runScript(args: string[]): Promise<{ stdout: string; stderr: string }> 
 }
 
 export async function POST(req: Request) {
+  const denied = await requireAdminApi();
+  if (denied) return denied;
   const formData = await req.formData();
   const file = formData.get("dxf") as File | null;
   const building = (formData.get("building") as string | null)?.toUpperCase().trim();

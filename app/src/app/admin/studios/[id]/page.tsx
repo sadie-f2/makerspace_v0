@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
+import { requireStaff } from "@/lib/requireStaff";
 import StudioEditForm from "@/components/StudioEditForm";
 
 export default async function StudioEditPage({
@@ -7,6 +8,7 @@ export default async function StudioEditPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requireStaff();
   const { id } = await params;
 
   const [studio, allowedSizes, otherStudios] = await Promise.all([
