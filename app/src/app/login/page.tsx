@@ -12,12 +12,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: { error?: string; callbackUrl?: string };
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
-  const callbackUrl = searchParams.callbackUrl ?? "/portal";
+  const { error, callbackUrl: callbackParam } = await searchParams;
+  const callbackUrl = callbackParam ?? "/portal";
 
   async function handleLogin(formData: FormData) {
     "use server";
@@ -64,7 +65,7 @@ export default function LoginPage({
                 required
               />
             </div>
-            {searchParams.error && (
+            {error && (
               <p className="text-sm text-red-600">
                 Invalid email or password.
               </p>

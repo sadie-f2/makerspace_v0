@@ -25,10 +25,11 @@ export default async function MemberDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: { pwreset?: string };
+  searchParams: Promise<{ pwreset?: string }>;
 }) {
   await requireStaff();
   const { id } = await params;
+  const { pwreset } = await searchParams;
   const session = await auth();
   const actorRole = session?.user.role as ValidRole | undefined;
   const isAdmin   = actorRole === "ADMIN";
@@ -377,7 +378,7 @@ export default async function MemberDetailPage({
               className="h-8 w-48 text-sm"
             />
             <Button type="submit" size="sm" variant="outline">Set password</Button>
-            {searchParams.pwreset && (
+            {pwreset && (
               <span className="text-xs text-green-600">Password updated.</span>
             )}
           </form>
