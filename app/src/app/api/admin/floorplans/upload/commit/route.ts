@@ -169,6 +169,7 @@ export async function POST(req: Request) {
   await fs.rm(labeledDxfTmp, { force: true });
 
   revalidatePath("/admin/studios");
+  revalidatePath("/admin/storage");
 
   return NextResponse.json({
     floorPlanId: fp.id,

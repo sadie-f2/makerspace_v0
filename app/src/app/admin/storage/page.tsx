@@ -162,7 +162,7 @@ export default async function StoragePage() {
                                 Vacant
                               </Badge>
                             )}
-                            <Link href={`/admin/resources/${r.id}`} className="text-xs text-gray-400 hover:underline">
+                            <Link href={`/admin/storage/${r.id}`} className="text-xs text-gray-400 hover:underline">
                               edit
                             </Link>
                           </div>
