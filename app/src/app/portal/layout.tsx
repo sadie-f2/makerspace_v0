@@ -2,7 +2,7 @@ import { auth, signOut } from "@/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import NavLinks from "@/components/NavLinks";
+import LayoutShell from "@/components/LayoutShell";
 
 const navLinks = [
   { href: "/portal",                  label: "Home" },
@@ -23,36 +23,33 @@ export default async function PortalLayout({
   const session = await auth();
   if (!session) redirect("/login");
 
-  return (
-    <div className="min-h-screen flex flex-col h-screen">
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-sm focus:font-medium">
-        Skip to main content
-      </a>
-      <header className="bg-white border-b px-6 py-3 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-sm">Artisans Asylum</span>
-        <div className="flex items-center gap-4 text-sm">
-          <span className="text-gray-500">{session.user.name}</span>
-          {(session.user.role === "STAFF" || session.user.role === "ADMIN") && (
-            <Link href="/admin" className="text-xs text-gray-400 hover:text-gray-700 underline">
-              Admin
-            </Link>
-          )}
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <Button variant="outline" size="sm" type="submit">Sign out</Button>
-          </form>
-        </div>
-      </header>
-      <div className="flex flex-1 overflow-hidden">
-        <nav aria-label="Member navigation" className="w-44 bg-gray-50 border-r px-3 py-4 shrink-0">
-          <NavLinks links={navLinks} />
-        </nav>
-        <main id="main-content" className="flex-1 overflow-auto p-6 bg-white">{children}</main>
-      </div>
+  const headerRight = (
+    <div className="flex items-center gap-4 text-sm">
+      <span className="text-gray-500">{session.user.name}</span>
+      {(session.user.role === "STAFF" || session.user.role === "ADMIN") && (
+        <Link href="/admin" className="text-xs text-gray-400 hover:text-gray-700 underline">
+          Admin
+        </Link>
+      )}
+      <form
+        action={async () => {
+          "use server";
+          await signOut({ redirectTo: "/login" });
+        }}
+      >
+        <Button variant="outline" size="sm" type="submit">Sign out</Button>
+      </form>
     </div>
+  );
+
+  return (
+    <LayoutShell
+      title="Artisans Asylum"
+      headerRight={headerRight}
+      navLinks={navLinks}
+      navLabel="Member navigation"
+    >
+      {children}
+    </LayoutShell>
   );
 }
