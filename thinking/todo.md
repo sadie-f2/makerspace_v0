@@ -131,11 +131,11 @@
 - [x] Vitest — identity.verifyCredentials returns false for bad password
 - [x] Vitest — bookingTime utilities (computeBlocks, roundUpTo15, slotsInRange, windowForDate, fmtDuration)
 - [x] Vitest — createBooking action
-- [ ] Vitest — bookingTime gaps: parseLocalDate, addDays, minutesFromMidnight, fmtTime, fmtDate, fmtDateShort
-- [ ] Vitest — freeze.ts: cache TTL behavior, requireUnfrozen() redirect guard, invalidateFreezeCache()
-- [ ] Vitest — undo.ts: isUndoable() predicate (age window, action="undo", undoOfId set, SYSTEM actor, unknown entity), cleanSnapshot() field filtering
+- [x] Vitest — bookingTime gaps: parseLocalDate, addDays, minutesFromMidnight, fmtTime, fmtDate, fmtDateShort
+- [x] Vitest — freeze.ts: cache TTL behavior, requireUnfrozen() redirect guard, invalidateFreezeCache()
+- [x] Vitest — undo.ts: isUndoable() predicate (age window, action="undo", undoOfId set, SYSTEM actor, unknown entity)
 - [ ] Vitest — audit.ts: getClientIp() header parsing (single IP, comma-separated forwarded-for, x-real-ip fallback, null outside request context)
-- [ ] Vitest — requireStaff / requireAdminApi: redirect/403 on missing session and MEMBER role; pass-through for STAFF/ADMIN
+- [x] Vitest — requireStaff / requireAdminApi: redirect/403 on missing session and MEMBER role; pass-through for STAFF/ADMIN
 - [ ] Integration — registration validation (pw mismatch, short, taken)
 - [ ] Integration — proxy route protection
 
