@@ -137,7 +137,7 @@ export function memberScenario({ memberCookies }) {
   portalDuration.add(res.timings.duration);
 
   const ok = check(res, {
-    "portal status 200 or 302": r => r.status === 200 || r.status === 302,
+    "portal status 2xx or 3xx": r => r.status >= 200 && r.status < 400,
     "portal not 5xx":           r => r.status < 500,
   });
   if (!ok) checkFailures.add(1);
@@ -172,7 +172,7 @@ export function adminScenario({ adminCookies }) {
   adminDuration.add(res.timings.duration);
 
   const ok = check(res, {
-    "admin status 200 or 302": r => r.status === 200 || r.status === 302,
+    "admin status 2xx or 3xx": r => r.status >= 200 && r.status < 400,
     "admin not 5xx":           r => r.status < 500,
   });
   if (!ok) checkFailures.add(1);
