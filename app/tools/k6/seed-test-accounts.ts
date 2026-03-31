@@ -13,9 +13,11 @@
  */
 
 import { PrismaClient } from "../../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
+const prisma = new PrismaClient({ adapter });
 const PASSWORD = process.env.TEST_PASSWORD ?? "LoadTest!Dev1";
 const MEMBER_COUNT = parseInt(process.env.MEMBER_COUNT ?? "10");
 const ADMIN_COUNT  = parseInt(process.env.ADMIN_COUNT  ?? "3");
