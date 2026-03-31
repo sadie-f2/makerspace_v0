@@ -62,6 +62,8 @@ except ImportError:
 
 LAYER_ENVELOPE = "0"
 LAYER_FP_MARKER = "fp_marker"
+LAYER_FP_VERSION = "fp_version"
+VERSION_PADDING_PX = 20  # SVG px reserved above building for version text
 
 STYLE_ENVELOPE = "fill:none;stroke:#333;stroke-width:2"
 STYLE_LABEL_STUDIO = (
@@ -616,7 +618,7 @@ def process_polyline_labeled(msp, parent_group, type_cfg, tx):
 
 # ── Core conversion ───────────────────────────────────────────────────────────
 
-def convert(dxf_path, svg_path, config, dxf_out_path=None, target_width=1000, marker=None):
+def convert(dxf_path, svg_path, config, dxf_out_path=None, target_width=1000, marker=None, version_label=None):
     doc = ezdxf.readfile(dxf_path)
     msp = doc.modelspace()
     all_layers = {layer.dxf.name for layer in doc.layers}
@@ -633,10 +635,11 @@ def convert(dxf_path, svg_path, config, dxf_out_path=None, target_width=1000, ma
     all_pts = [p for seg in envelope_lines for p in seg]
     min_x, min_y, max_x, max_y = bbox_points(all_pts)
     scale = target_width / (max_x - min_x)
-    svg_h = (max_y - min_y) * scale
+    top_pad = VERSION_PADDING_PX if version_label else 0
+    svg_h = (max_y - min_y) * scale + top_pad
 
     def tx(x, y):
-        return (x - min_x) * scale, (max_y - y) * scale
+        return (x - min_x) * scale, (max_y - y) * scale + top_pad
 
     # ── 2. Build shared bay code trackers (one per label layer) ───────────
     # All insert_coded and insert_multilevel types sharing a label layer
@@ -659,6 +662,18 @@ def convert(dxf_path, svg_path, config, dxf_out_path=None, target_width=1000, ma
         "height": f"{svg_h:.2f}",
         "viewBox": f"0 0 {target_width} {svg_h:.2f}",
     })
+
+    # Version label (above building, if provided)
+    if version_label:
+        ET.SubElement(svg, "text", {
+            "x": "6",
+            "y": f"{top_pad - 5}",
+            "style": (
+                "font-family:monospace;font-size:10px;fill:#555;"
+                "dominant-baseline:auto;"
+            ),
+            "data-fp-version": version_label,
+        }).text = version_label
 
     # Envelope group (always first)
     g_envelope = ET.SubElement(svg, "g", {"id": "envelope"})
@@ -708,10 +723,10 @@ def convert(dxf_path, svg_path, config, dxf_out_path=None, target_width=1000, ma
 
     # ── 6. Labeled DXF output ──────────────────────────────────────────────
     if dxf_out_path:
-        _write_labeled_dxf(doc, msp, new_label_writes, bay_trackers, config, marker, min_x, max_y, dxf_out_path)
+        _write_labeled_dxf(doc, msp, new_label_writes, bay_trackers, config, marker, min_x, max_y, dxf_out_path, version_label)
 
 
-def _write_labeled_dxf(doc, msp, new_label_writes, bay_trackers, config, marker, min_x, max_y, dxf_out_path):
+def _write_labeled_dxf(doc, msp, new_label_writes, bay_trackers, config, marker, min_x, max_y, dxf_out_path, version_label=None):
     """Write a labeled copy of the DXF with new number labels and bay codes."""
 
     # Write new sequential number labels (studios etc.)
@@ -752,6 +767,18 @@ def _write_labeled_dxf(doc, msp, new_label_writes, bay_trackers, config, marker,
     if marker:
         write_marker(msp, doc, marker, min_x, max_y)
 
+    if version_label:
+        if LAYER_FP_VERSION not in doc.layers:
+            doc.layers.add(LAYER_FP_VERSION, color=7)  # white/gray, visible on dark backgrounds
+        msp.add_text(
+            version_label,
+            dxfattribs={
+                "layer": LAYER_FP_VERSION,
+                "insert": (min_x, max_y + 2.5),  # above building perimeter
+                "height": 1.5,
+            },
+        )
+
     doc.saveas(dxf_out_path)
     new_codes = sum(len(t.new_assignments()) for t in bay_trackers.values())
     marker_note = f", marker={marker}" if marker else ""
@@ -765,7 +792,8 @@ def main():
     parser.add_argument("--input",        required=True,        help="Input .dxf file")
     parser.add_argument("--output",       default=None,         help="Output .svg file")
     parser.add_argument("--output-dxf",   default=None,         help="Output labeled .dxf file (optional)")
-    parser.add_argument("--marker",       default=None,         help="Provenance marker to embed in --output-dxf")
+    parser.add_argument("--marker",        default=None,         help="Provenance marker to embed in --output-dxf")
+    parser.add_argument("--version-label", default=None,         help="Human-readable version string (e.g. 'fpid.revid - Rev 3 · 2026-03-28')")
     parser.add_argument("--width",        type=int, default=1000, help="SVG width px (default 1000)")
     parser.add_argument("--config",       default=None,         help="JSON config file from app DB (optional)")
     parser.add_argument("--read-marker",  action="store_true",  help="Read provenance marker from input DXF and exit")
@@ -787,6 +815,7 @@ def main():
         dxf_out_path=args.output_dxf,
         target_width=args.width,
         marker=args.marker,
+        version_label=args.version_label,
     )
 
 

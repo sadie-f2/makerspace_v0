@@ -84,8 +84,11 @@ export async function POST(req: Request) {
   // Move temp SVG to final location
   await fs.copyFile(meta.svgTmpPath, svgAbsPath);
 
-  // Generate labeled DXF with provenance marker
+  // Generate labeled DXF with provenance marker and version label
   const marker = `${fp.id}.${revision.id}`;
+  const revCount = await prisma.floorPlanRevision.count({ where: { floorPlanId: fp.id } });
+  const revDate  = new Date().toISOString().split("T")[0];
+  const versionLabel = `${marker} - Rev ${revCount} · ${revDate}`;
   const scriptPath = path.join(process.cwd(), "tools", "dxf_to_svg.py");
   const labeledDxfTmp = path.join(os.tmpdir(), `labeled-${revision.id}.dxf`);
 
@@ -115,7 +118,8 @@ export async function POST(req: Request) {
       "--input",      meta.dxfPath,
       "--output",     svgAbsPath,   // regenerate in-place (idempotent)
       "--output-dxf", labeledDxfTmp,
-      "--marker",     marker,
+      "--marker",         marker,
+      "--version-label",  versionLabel,
       ...configArgs,
     ]);
   } catch (err) {
