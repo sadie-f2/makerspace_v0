@@ -354,7 +354,7 @@ export default function FloorPlanViewer({
       {/* Outer container: clips, receives wheel/drag */}
       <div
         ref={outerRef}
-        className={`border rounded bg-white select-none ${unconstrained ? "" : "overflow-hidden"}`}
+        className="border rounded bg-white select-none overflow-hidden"
         style={{
           ...(unconstrained ? undefined : { maxHeight: "70vh" }),
           cursor: cursorStyle,
