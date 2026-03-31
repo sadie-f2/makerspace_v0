@@ -5,6 +5,12 @@ import {
   slotsInRange,
   windowForDate,
   fmtDuration,
+  parseLocalDate,
+  addDays,
+  minutesFromMidnight,
+  fmtTime,
+  fmtDate,
+  fmtDateShort,
   type SerializedBooking,
 } from "../lib/bookingTime";
 
@@ -324,5 +330,139 @@ describe("fmtDuration", () => {
     expect(fmtDuration((90 * 60 + 29) * 1000)).toBe("1 h 30 min");
     // 90 minutes + 30 seconds → rounds to 91 min → 1 h 31 min
     expect(fmtDuration((90 * 60 + 30) * 1000)).toBe("1 h 31 min");
+  });
+});
+
+// ── parseLocalDate ───────────────────────────────────────────────────────────
+
+describe("parseLocalDate", () => {
+  it("parses a standard date string", () => {
+    const d = parseLocalDate("2025-06-15");
+    expect(d.getFullYear()).toBe(2025);
+    expect(d.getMonth()).toBe(5);   // 0-indexed
+    expect(d.getDate()).toBe(15);
+  });
+
+  it("handles month boundaries (Jan 31)", () => {
+    const d = parseLocalDate("2025-01-31");
+    expect(d.getMonth()).toBe(0);
+    expect(d.getDate()).toBe(31);
+  });
+
+  it("handles year start", () => {
+    const d = parseLocalDate("2026-01-01");
+    expect(d.getFullYear()).toBe(2026);
+    expect(d.getMonth()).toBe(0);
+    expect(d.getDate()).toBe(1);
+  });
+
+  it("returns a Date object", () => {
+    expect(parseLocalDate("2025-06-15")).toBeInstanceOf(Date);
+  });
+});
+
+// ── addDays ──────────────────────────────────────────────────────────────────
+
+describe("addDays", () => {
+  it("adds days within the same month", () => {
+    expect(addDays("2025-06-15", 5)).toBe("2025-06-20");
+  });
+
+  it("crosses a month boundary", () => {
+    expect(addDays("2025-06-28", 5)).toBe("2025-07-03");
+  });
+
+  it("crosses a year boundary", () => {
+    expect(addDays("2025-12-28", 5)).toBe("2026-01-02");
+  });
+
+  it("handles negative days", () => {
+    expect(addDays("2025-06-15", -10)).toBe("2025-06-05");
+  });
+
+  it("handles negative days crossing a month boundary", () => {
+    expect(addDays("2025-06-03", -5)).toBe("2025-05-29");
+  });
+
+  it("returns the same date for 0", () => {
+    expect(addDays("2025-06-15", 0)).toBe("2025-06-15");
+  });
+
+  it("pads single-digit month and day", () => {
+    expect(addDays("2025-01-01", 0)).toBe("2025-01-01");
+  });
+});
+
+// ── minutesFromMidnight ──────────────────────────────────────────────────────
+
+describe("minutesFromMidnight", () => {
+  it("returns 0 at midnight", () => {
+    const d = new Date(2025, 5, 15, 0, 0, 0);
+    expect(minutesFromMidnight(d)).toBe(0);
+  });
+
+  it("returns 60 at 1:00am", () => {
+    const d = new Date(2025, 5, 15, 1, 0, 0);
+    expect(minutesFromMidnight(d)).toBe(60);
+  });
+
+  it("returns 750 at 12:30pm", () => {
+    const d = new Date(2025, 5, 15, 12, 30, 0);
+    expect(minutesFromMidnight(d)).toBe(750);
+  });
+
+  it("returns 1439 at 23:59", () => {
+    const d = new Date(2025, 5, 15, 23, 59, 0);
+    expect(minutesFromMidnight(d)).toBe(1439);
+  });
+});
+
+// ── fmtTime ──────────────────────────────────────────────────────────────────
+
+describe("fmtTime", () => {
+  it("returns a time string in 12-hour format", () => {
+    const d = new Date("2025-06-15T14:30:00Z");
+    const result = fmtTime(d, "UTC");
+    expect(result).toMatch(/\d{1,2}:\d{2}\s*(AM|PM)/i);
+  });
+
+  it("reflects the correct time for UTC noon", () => {
+    const d = new Date("2025-06-15T12:00:00Z");
+    expect(fmtTime(d, "UTC")).toMatch(/12:00\s*PM/i);
+  });
+
+  it("adjusts for timezone offset", () => {
+    // UTC midnight = 8pm (20:00) on prior day in America/New_York (UTC-4 summer)
+    const d = new Date("2025-06-15T00:00:00Z");
+    const utc    = fmtTime(d, "UTC");
+    const eastern = fmtTime(d, "America/New_York");
+    expect(utc).not.toBe(eastern);
+  });
+});
+
+// ── fmtDate ──────────────────────────────────────────────────────────────────
+
+describe("fmtDate", () => {
+  it("returns a string with weekday, month, and day", () => {
+    const d = new Date("2025-06-15T12:00:00Z");
+    const result = fmtDate(d, "UTC");
+    // e.g. "Sun, Jun 15"
+    expect(result).toMatch(/[A-Z][a-z]{2},\s+[A-Z][a-z]{2}\s+\d{1,2}/);
+  });
+});
+
+// ── fmtDateShort ─────────────────────────────────────────────────────────────
+
+describe("fmtDateShort", () => {
+  it("returns a short month + day string", () => {
+    const result = fmtDateShort("2025-06-15T12:00:00Z", "UTC");
+    // e.g. "Jun 15"
+    expect(result).toMatch(/[A-Z][a-z]{2}\s+\d{1,2}/);
+  });
+
+  it("produces different output for different dates", () => {
+    const a = fmtDateShort("2025-06-15T12:00:00Z", "UTC");
+    const b = fmtDateShort("2025-07-04T12:00:00Z", "UTC");
+    expect(a).not.toBe(b);
   });
 });
