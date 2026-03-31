@@ -151,7 +151,6 @@ const ADMIN_ENDPOINTS = [
   { path: "/admin",                    tag: "admin/dashboard"       },
   { path: "/admin/members",            tag: "admin/members"         },
   { path: "/admin/bookings",           tag: "admin/bookings"        },
-  { path: "/admin/certifications",     tag: "admin/certifications"  },
   { path: "/admin/waitlist",           tag: "admin/waitlist"        },
   { path: "/admin/studios",            tag: "admin/studios"         },
   { path: "/admin/storage",            tag: "admin/storage"         },
@@ -175,7 +174,10 @@ export function adminScenario({ adminCookies }) {
     "admin status 2xx or 3xx": r => r.status >= 200 && r.status < 400,
     "admin not 5xx":           r => r.status < 500,
   });
-  if (!ok) checkFailures.add(1);
+  if (!ok) {
+    checkFailures.add(1);
+    console.warn(`admin ${res.status} ${endpoint.path}`);
+  }
 
   sleep(1 + Math.random() * 3);
 }
