@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { identity } from "@/lib/identity";
+import { checkPasswordStrength, type PasswordRole } from "@/lib/passwordStrength";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordInput from "@/components/PasswordInput";
 
 export default async function ProfilePage({
   searchParams,
@@ -36,18 +38,20 @@ export default async function ProfilePage({
     const next    = formData.get("next") as string;
     const confirm = formData.get("confirm") as string;
 
-    if (next !== confirm)    redirect("/portal/profile?pwerror=mismatch");
-    if (next.length < 8)     redirect("/portal/profile?pwerror=short");
+    if (next !== confirm) redirect("/portal/profile?pwerror=mismatch");
 
     // Verify current password before allowing change
-    const member = await prisma.member.findUnique({
+    const m = await prisma.member.findUnique({
       where:  { id: memberId },
-      select: { email: true, passwordHash: true },
+      select: { email: true, passwordHash: true, role: true },
     });
-    if (!member?.passwordHash) redirect("/portal/profile?pwerror=nopass");
+    if (!m?.passwordHash) redirect("/portal/profile?pwerror=nopass");
 
-    const valid = await identity.verifyCredentials(member.email, current);
+    const valid = await identity.verifyCredentials(m.email, current);
     if (!valid) redirect("/portal/profile?pwerror=wrong");
+
+    const check = checkPasswordStrength(next, m.role as PasswordRole);
+    if (!check.ok) redirect(`/portal/profile?pwerror=${encodeURIComponent(check.message!)}`);
 
     await identity.setPassword({ memberId, newPassword: next });
     redirect("/portal/profile?pwsaved=1");
@@ -55,7 +59,6 @@ export default async function ProfilePage({
 
   const pwErrors: Record<string, string> = {
     mismatch: "New passwords do not match.",
-    short:    "Password must be at least 8 characters.",
     wrong:    "Current password is incorrect.",
     nopass:   "No password set on this account.",
   };
@@ -96,18 +99,20 @@ export default async function ProfilePage({
         <form action={changePassword} className="space-y-4">
           <div className="space-y-1">
             <Label htmlFor="current">Current password</Label>
-            <Input id="current" name="current" type="password" required autoComplete="current-password" className="h-9" />
+            <PasswordInput id="current" name="current" required autoComplete="current-password" className="h-9" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="next">New password</Label>
-            <Input id="next" name="next" type="password" required autoComplete="new-password" className="h-9" />
+            <PasswordInput id="next" name="next" required autoComplete="new-password" className="h-9" />
           </div>
           <div className="space-y-1">
             <Label htmlFor="confirm">Confirm new password</Label>
-            <Input id="confirm" name="confirm" type="password" required autoComplete="new-password" className="h-9" />
+            <PasswordInput id="confirm" name="confirm" required autoComplete="new-password" className="h-9" />
           </div>
           {searchParams.pwerror && (
-            <p className="text-sm text-red-600">{pwErrors[searchParams.pwerror] ?? "Error changing password."}</p>
+            <p className="text-sm text-red-600">
+              {pwErrors[searchParams.pwerror] ?? decodeURIComponent(searchParams.pwerror)}
+            </p>
           )}
           {searchParams.pwsaved && (
             <p className="text-sm text-green-600">Password updated.</p>

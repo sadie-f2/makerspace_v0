@@ -7,6 +7,7 @@ import { payment } from "@/lib/payment";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordInput from "@/components/PasswordInput";
 import {
   Card,
   CardContent,
@@ -71,11 +72,11 @@ export default function RegisterPage({
             </div>
             <div className="space-y-1">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" name="password" type="password" required autoComplete="new-password" />
+              <PasswordInput id="password" name="password" required autoComplete="new-password" />
             </div>
             <div className="space-y-1">
               <Label htmlFor="confirm">Confirm password</Label>
-              <Input id="confirm" name="confirm" type="password" required autoComplete="new-password" />
+              <PasswordInput id="confirm" name="confirm" required autoComplete="new-password" />
             </div>
             {searchParams.error && (
               <p className="text-sm text-red-600">

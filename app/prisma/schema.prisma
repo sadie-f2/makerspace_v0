@@ -74,8 +74,9 @@ model Member {
   stripeCustomerId  String?     @unique
   tierId            String?
   image             String?
-  role              MemberRole  @default(MEMBER)
-  accessSuspended   Boolean     @default(false)
+  role                  MemberRole  @default(MEMBER)
+  requiresPasswordReset Boolean     @default(false)
+  accessSuspended       Boolean     @default(false)
   accessSuspendedAt DateTime?
   deletedAt         DateTime?
   deletedById      String?

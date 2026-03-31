@@ -9,10 +9,12 @@ import { access } from "@/lib/access";
 import { notify } from "@/lib/notifications";
 import { hasPermission, PERMISSION_LABELS } from "@/lib/permissions";
 import { requireUnfrozen } from "@/lib/freeze";
+import { checkPasswordStrength, type PasswordRole } from "@/lib/passwordStrength";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordInput from "@/components/PasswordInput";
 
 const VALID_ROLES = ["MEMBER", "VOLUNTEER", "STAFF", "ADMIN"] as const;
 type ValidRole = typeof VALID_ROLES[number];
@@ -25,11 +27,11 @@ export default async function MemberDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ pwreset?: string }>;
+  searchParams: Promise<{ pwreset?: string; msg?: string }>;
 }) {
   await requireStaff();
   const { id } = await params;
-  const { pwreset } = await searchParams;
+  const { pwreset, msg } = await searchParams;
   const session = await auth();
   const actorRole = session?.user.role as ValidRole | undefined;
   const isAdmin   = actorRole === "ADMIN";
@@ -125,11 +127,18 @@ export default async function MemberDetailPage({
     const actorRoleNow = session?.user.role as ValidRole | undefined;
     if (actorRoleNow === "STAFF" && !STAFF_ASSIGNABLE.includes(role as ValidRole)) return;
     if (!["STAFF", "ADMIN"].includes(actorRoleNow ?? "")) return;
-    await prisma.member.update({ where: { id }, data: { role: role as ValidRole } });
+    // Elevation to STAFF/ADMIN requires a password reset
+    const wasElevated = ["STAFF", "ADMIN"].includes(member!.role);
+    const isElevation = ["STAFF", "ADMIN"].includes(role) && !wasElevated;
+    await prisma.member.update({
+      where: { id },
+      data:  { role: role as ValidRole, ...(isElevation ? { requiresPasswordReset: true } : {}) },
+    });
     await audit({
       actorId: session?.user.id ?? null,
       action: "update", entityType: "Member", entityId: id,
-      before: { role: member!.role }, after: { role }, note: "Role changed",
+      before: { role: member!.role }, after: { role },
+      note: isElevation ? "Role elevated — password reset required" : "Role changed",
     });
     redirect(`/admin/members/${id}`);
   }
@@ -160,8 +169,11 @@ export default async function MemberDetailPage({
     "use server";
     await requireUnfrozen(`/admin/members/${id}`);
     const newPassword = (formData.get("newPassword") as string).trim();
-    if (newPassword.length < 8) return;
+    const check = checkPasswordStrength(newPassword, member!.role as PasswordRole);
+    if (!check.ok) redirect(`/admin/members/${id}?pwreset=error&msg=${encodeURIComponent(check.message!)}`);
     await identity.setPassword({ memberId: id, newPassword });
+    // Clear reset flag if it was set
+    await prisma.member.update({ where: { id }, data: { requiresPasswordReset: false } });
     await audit({
       actorId: session?.user.id ?? null,
       action: "update", entityType: "Member", entityId: id,
@@ -368,18 +380,19 @@ export default async function MemberDetailPage({
           <Button type="submit" size="sm">Save profile</Button>
         </form>
         {isStaff && (
-          <form action={resetPassword} className="flex items-center gap-2 mt-3">
-            <Input
+          <form action={resetPassword} className="flex items-center gap-2 mt-3 flex-wrap">
+            <PasswordInput
               name="newPassword"
-              type="password"
               placeholder="Set new password"
-              minLength={8}
               required
               className="h-8 w-48 text-sm"
             />
             <Button type="submit" size="sm" variant="outline">Set password</Button>
-            {pwreset && (
+            {pwreset === "1" && (
               <span className="text-xs text-green-600">Password updated.</span>
+            )}
+            {pwreset === "error" && msg && (
+              <span className="text-xs text-red-600">{decodeURIComponent(msg)}</span>
             )}
           </form>
         )}

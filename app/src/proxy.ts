@@ -1,5 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
+
+// Short-lived cache so we don't hit the DB on every request.
+// TTL is intentionally short: once the flag clears (after reset), the user
+// should be unblocked within RESET_TTL_MS at most.
+const _resetCache = new Map<string, { needs: boolean; exp: number }>();
+const RESET_TTL_MS = 30_000;
+
+async function needsPasswordReset(userId: string): Promise<boolean> {
+  const cached = _resetCache.get(userId);
+  if (cached && cached.exp > Date.now()) return cached.needs;
+  const member = await prisma.member.findUnique({
+    where:  { id: userId },
+    select: { requiresPasswordReset: true },
+  });
+  const needs = member?.requiresPasswordReset ?? false;
+  _resetCache.set(userId, { needs, exp: Date.now() + RESET_TTL_MS });
+  return needs;
+}
 
 // proxy.ts (Next.js 16) — runs on Node.js runtime, so auth/Prisma imports are safe.
 export async function proxy(req: NextRequest) {
@@ -33,6 +52,11 @@ export async function proxy(req: NextRequest) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("callbackUrl", req.nextUrl.pathname);
       return NextResponse.redirect(loginUrl);
+    }
+    // If the user must reset their password, gate everything except the reset page itself
+    if (req.nextUrl.pathname !== "/reset-password") {
+      const needs = await needsPasswordReset(session.user.id);
+      if (needs) return NextResponse.redirect(new URL("/reset-password", req.url));
     }
   }
 

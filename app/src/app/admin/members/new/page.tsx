@@ -10,12 +10,20 @@ import { requireUnfrozen } from "@/lib/freeze";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PasswordInput from "@/components/PasswordInput";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 
+const VALID_ROLES = ["MEMBER", "VOLUNTEER", "STAFF", "ADMIN"] as const;
+type ValidRole = typeof VALID_ROLES[number];
+
 export default async function NewMemberPage() {
   await requireStaff();
+  const session = await auth();
+  const actorRole = session?.user.role as ValidRole | undefined;
+  const isAdmin = actorRole === "ADMIN";
+
   const tiers = await prisma.memberTier.findMany({
     where: { active: true },
     orderBy: { sortOrder: "asc" },
@@ -25,14 +33,23 @@ export default async function NewMemberPage() {
     "use server";
     const session = await auth();
     await requireUnfrozen("/admin/members/new");
-    const name = formData.get("name") as string;
+    const name  = formData.get("name") as string;
     const email = formData.get("email") as string;
     const phone = (formData.get("phone") as string) || null;
     const tierId = (formData.get("tierId") as string) || null;
     const password = formData.get("password") as string;
 
+    // Role: only admins may set STAFF/ADMIN; others always create MEMBER
+    const actorRoleNow = session?.user.role as ValidRole | undefined;
+    const rawRole = (formData.get("role") as string) || "MEMBER";
+    const role: ValidRole =
+      actorRoleNow === "ADMIN" && VALID_ROLES.includes(rawRole as ValidRole)
+        ? (rawRole as ValidRole)
+        : "MEMBER";
+    const requiresPasswordReset = ["STAFF", "ADMIN"].includes(role);
+
     const member = await prisma.member.create({
-      data: { name, email, phone, tierId },
+      data: { name, email, phone, tierId, role, requiresPasswordReset },
     });
 
     await identity.provisionUser({ memberId: member.id, name, email, initialPassword: password || undefined });
@@ -89,12 +106,28 @@ export default async function NewMemberPage() {
             </SelectContent>
           </Select>
         </div>
+        {isAdmin && (
+          <div className="space-y-1">
+            <Label htmlFor="role">Role</Label>
+            <select
+              id="role"
+              name="role"
+              defaultValue="MEMBER"
+              className="border rounded px-3 py-1.5 text-sm w-full focus:outline-none focus:ring-1 focus:ring-gray-400"
+            >
+              <option value="MEMBER">Member</option>
+              <option value="VOLUNTEER">Volunteer</option>
+              <option value="STAFF">Staff (requires password reset)</option>
+              <option value="ADMIN">Admin (requires password reset)</option>
+            </select>
+          </div>
+        )}
         <div className="space-y-1">
           <Label htmlFor="password">
             Temporary password{" "}
             <span className="text-gray-400 font-normal">(defaults to "changeme")</span>
           </Label>
-          <Input id="password" name="password" type="text" placeholder="changeme" />
+          <PasswordInput id="password" name="password" placeholder="changeme" className="h-9" />
         </div>
         <div className="flex gap-3 pt-2">
           <Button type="submit">Create member</Button>
