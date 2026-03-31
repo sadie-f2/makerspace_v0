@@ -322,6 +322,8 @@ export default function FloorPlanViewer({
             <button
               key={l}
               onClick={() => setShelfLevel(l)}
+              aria-pressed={shelfLevel === l}
+              aria-label={`Shelf level ${l}`}
               className={`px-2 py-0.5 rounded border text-xs ${shelfLevel === l ? "bg-gray-800 text-white border-gray-800" : "border-gray-300 hover:border-gray-500"}`}
             >
               L{l}
@@ -335,18 +337,18 @@ export default function FloorPlanViewer({
         <button
           onClick={() => setZoom(z => Math.min(MAX_ZOOM, z * 1.25))}
           className="w-7 h-7 bg-white border rounded shadow text-sm font-bold hover:bg-gray-50 flex items-center justify-center"
-          title="Zoom in"
-        >+</button>
+          aria-label="Zoom in"
+        ><span aria-hidden="true">+</span></button>
         <button
           onClick={() => setZoom(z => Math.max(MIN_ZOOM, z / 1.25))}
           className="w-7 h-7 bg-white border rounded shadow text-sm font-bold hover:bg-gray-50 flex items-center justify-center"
-          title="Zoom out"
-        >−</button>
+          aria-label="Zoom out"
+        ><span aria-hidden="true">−</span></button>
         <button
           onClick={resetView}
           className="w-7 h-7 bg-white border rounded shadow text-xs hover:bg-gray-50 flex items-center justify-center"
-          title="Reset view"
-        >⊡</button>
+          aria-label="Reset view"
+        ><span aria-hidden="true">⊡</span></button>
       </div>
 
       {/* Outer container: clips, receives wheel/drag */}

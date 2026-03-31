@@ -30,10 +30,12 @@ export default function StudioFloorPlan({ floorPlans }: Props) {
   return (
     <div className="mb-8">
       {floorPlans.length > 1 && (
-        <div className="flex gap-1 mb-2">
+        <div role="tablist" aria-label="Floor plan" className="flex gap-1 mb-2">
           {floorPlans.map(fp => (
             <button
               key={fp.id}
+              role="tab"
+              aria-selected={activeId === fp.id}
               onClick={() => setActiveId(fp.id)}
               className={`px-2 py-0.5 text-xs rounded border ${activeId === fp.id ? "bg-gray-800 text-white border-gray-800" : "border-gray-300 hover:border-gray-500"}`}
             >

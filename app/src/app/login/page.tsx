@@ -53,6 +53,8 @@ export default async function LoginPage({
                 type="email"
                 autoComplete="email"
                 required
+                aria-invalid={error ? true : undefined}
+                aria-describedby={error ? "login-error" : undefined}
               />
             </div>
             <div className="space-y-1">
@@ -66,7 +68,7 @@ export default async function LoginPage({
               />
             </div>
             {error && (
-              <p className="text-sm text-red-600">
+              <p id="login-error" role="alert" className="text-sm text-red-600">
                 Invalid email or password.
               </p>
             )}

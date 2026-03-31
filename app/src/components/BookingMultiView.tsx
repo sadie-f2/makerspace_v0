@@ -165,18 +165,21 @@ export default function BookingMultiView({
       {/* Date nav */}
       <div className="flex items-center gap-3 mb-4">
         <button onClick={() => navTo(addDays(date, -1))}
+          aria-label="Previous day"
           className="text-sm text-gray-500 hover:text-gray-800 px-2 py-1 rounded border hover:border-gray-400">
-          ← Prev
+          <span aria-hidden="true">← Prev</span>
         </button>
-        <span className="font-medium text-sm">{fmtDate(parseLocalDate(date), timezone)}</span>
+        <span className="font-medium text-sm" aria-live="polite">{fmtDate(parseLocalDate(date), timezone)}</span>
         <button onClick={() => navTo(addDays(date, 1))}
+          aria-label="Next day"
           className="text-sm text-gray-500 hover:text-gray-800 px-2 py-1 rounded border hover:border-gray-400">
-          Next →
+          <span aria-hidden="true">Next →</span>
         </button>
         <button onClick={() => {
             const t = new Date();
             navTo(`${t.getFullYear()}-${String(t.getMonth()+1).padStart(2,"0")}-${String(t.getDate()).padStart(2,"0")}`);
           }}
+          aria-label="Go to today"
           className="text-xs text-gray-400 hover:text-gray-600 underline ml-1">
           today
         </button>
@@ -203,7 +206,7 @@ export default function BookingMultiView({
       )}
 
       {canBook && (
-        <p className="mb-2 text-xs text-gray-400">
+        <p aria-live="polite" className="mb-2 text-xs text-gray-400">
           {pendingStart
             ? <>
                 <span className="font-medium text-blue-600">

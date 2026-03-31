@@ -32,19 +32,23 @@ export default function StorageFloorPlan({ floorPlans }: Props) {
     <div className="mb-6 border rounded-md overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        aria-controls="storage-floorplan-panel"
         className="w-full flex items-center justify-between px-4 py-2.5 bg-gray-50 hover:bg-gray-100 text-sm font-medium text-left"
       >
         <span>Floor plan</span>
-        <span className="text-gray-400 text-xs">{open ? "▲ hide" : "▼ show"}</span>
+        <span aria-hidden="true" className="text-gray-400 text-xs">{open ? "▲ hide" : "▼ show"}</span>
       </button>
 
       {open && (
-        <div className="p-3">
+        <div id="storage-floorplan-panel" className="p-3">
           {floorPlans.length > 1 && (
-            <div className="flex gap-1 mb-2">
+            <div role="tablist" aria-label="Floor plan" className="flex gap-1 mb-2">
               {floorPlans.map(fp => (
                 <button
                   key={fp.id}
+                  role="tab"
+                  aria-selected={activeId === fp.id}
                   onClick={() => setActiveId(fp.id)}
                   className={`px-2 py-0.5 text-xs rounded border ${activeId === fp.id ? "bg-gray-800 text-white border-gray-800" : "border-gray-300 hover:border-gray-500"}`}
                 >

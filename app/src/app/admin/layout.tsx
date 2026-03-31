@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { isSystemFrozen } from "@/lib/freeze";
 import type { MemberRole } from "@/generated/prisma/enums";
+import NavLinks from "@/components/NavLinks";
 
 // Links visible to all admin-eligible roles (VOLUNTEER, STAFF, ADMIN)
 const volunteerLinks = [
@@ -47,6 +48,9 @@ export default async function AdminLayout({
 
   return (
     <div className="min-h-screen flex flex-col">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-sm focus:font-medium">
+        Skip to main content
+      </a>
       <header className="bg-white border-b px-6 py-3 flex items-center justify-between shrink-0">
         <span className="font-semibold text-sm">Artisans Asylum — Admin</span>
         <div className="flex items-center gap-4 text-sm">
@@ -69,27 +73,16 @@ export default async function AdminLayout({
         </div>
       </header>
       {frozen && (
-        <div className="bg-red-600 text-white text-center text-sm py-1.5 px-4 shrink-0">
-          ⚠ System is frozen — write operations are disabled.{" "}
+        <div role="alert" className="bg-red-600 text-white text-center text-sm py-1.5 px-4 shrink-0">
+          <span aria-hidden="true">⚠</span>{" "}System is frozen — write operations are disabled.{" "}
           <Link href="/admin/settings" className="underline font-medium">Manage in Settings</Link>
         </div>
       )}
       <div className="flex flex-1 overflow-hidden">
-        <nav className="w-48 bg-gray-50 border-r px-3 py-4 shrink-0">
-          <ul className="space-y-1">
-            {navLinks.map(({ href, label }) => (
-              <li key={href}>
-                <Link
-                  href={href}
-                  className="block px-3 py-2 rounded text-sm text-gray-700 hover:bg-gray-200"
-                >
-                  {label}
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <nav aria-label="Admin navigation" className="w-48 bg-gray-50 border-r px-3 py-4 shrink-0">
+          <NavLinks links={navLinks} />
         </nav>
-        <main className="flex-1 overflow-auto p-6 bg-white">{children}</main>
+        <main id="main-content" className="flex-1 overflow-auto p-6 bg-white">{children}</main>
       </div>
     </div>
   );
