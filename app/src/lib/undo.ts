@@ -3,7 +3,7 @@ import type { AuditLog } from "@/generated/prisma/client";
 
 export const UNDO_WINDOW_MS = 60 * 60 * 1000; // 1 hour
 
-// Entity types where one-click undo is supported
+// Entity types where one-click undo / force-revert is supported
 const UNDOABLE_ENTITIES = new Set([
   "Member",
   "Rental",
@@ -24,11 +24,22 @@ function cleanSnapshot(data: unknown): Record<string, unknown> {
   );
 }
 
+/**
+ * Returns true if the log entry can be reverted at all (entity type eligible,
+ * not already an undo row, not a SYSTEM action). Does NOT check the time window.
+ * Use isUndoable() for the full time-windowed check.
+ */
+export function isForceRevertEligible(
+  log: Pick<AuditLog, "action" | "actorType" | "entityType" | "undoOfId">,
+): boolean {
+  if (log.action === "undo") return false;
+  if (log.undoOfId) return false;
+  if (log.actorType === "SYSTEM") return false;
+  return UNDOABLE_ENTITIES.has(log.entityType);
+}
+
 export function isUndoable(log: Pick<AuditLog, "action" | "actorType" | "entityType" | "timestamp" | "undoOfId">): boolean {
-  if (log.action === "undo") return false;                       // no redo
-  if (log.undoOfId) return false;                               // already an undo entry
-  if (log.actorType === "SYSTEM") return false;                 // system/pipeline events
-  if (!UNDOABLE_ENTITIES.has(log.entityType)) return false;
+  if (!isForceRevertEligible(log)) return false;
   const age = Date.now() - new Date(log.timestamp).getTime();
   return age <= UNDO_WINDOW_MS;
 }
@@ -41,20 +52,30 @@ export type UndoResult =
  * Apply the inverse of an audit log entry.
  * Writes a new AuditLog row with action="undo" referencing the original.
  * Does NOT handle external side effects (Stripe, Brivo) — callers must note these.
+ *
+ * @param options.force  If true, bypasses the 1-hour time window (ADMIN only).
  */
 export async function applyUndo(
   originalId: string,
   actorId: string,
+  options?: { force?: boolean },
 ): Promise<UndoResult> {
   const original = await prisma.auditLog.findUnique({ where: { id: originalId } });
   if (!original) return { ok: false, reason: "Audit entry not found" };
-  if (!isUndoable(original)) return { ok: false, reason: "This action is not eligible for undo" };
+  if (options?.force) {
+    if (!isForceRevertEligible(original)) {
+      return { ok: false, reason: "This action is not eligible for revert" };
+    }
+  } else {
+    if (!isUndoable(original)) return { ok: false, reason: "This action is not eligible for undo" };
+  }
 
   // Check not already undone
   const alreadyUndone = await prisma.auditLog.findFirst({ where: { undoOfId: originalId } });
   if (alreadyUndone) return { ok: false, reason: "This action has already been undone" };
 
   const { action, entityType, entityId, before, after } = original;
+  const verb = options?.force ? "Force-reverted" : "Undid";
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -141,7 +162,7 @@ export async function applyUndo(
           entityId,
           before:    after  ?? undefined,  // the state we're replacing
           after:     before ?? undefined,  // the state we're restoring
-          note:      `Undid ${action} on ${entityType} ${entityId}`,
+          note:      `${verb} ${action} on ${entityType} ${entityId}`,
           undoOfId:  originalId,
         },
       });

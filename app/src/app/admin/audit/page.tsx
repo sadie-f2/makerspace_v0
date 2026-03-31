@@ -3,9 +3,10 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/auth";
 import { requireStaff } from "@/lib/requireStaff";
-import { isUndoable, applyUndo, UNDO_WINDOW_MS } from "@/lib/undo";
+import { isUndoable, isForceRevertEligible, applyUndo, UNDO_WINDOW_MS } from "@/lib/undo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import ForceRevertButton from "@/components/ForceRevertButton";
 
 const ACTION_COLORS: Record<string, string> = {
   create:  "bg-green-100 text-green-800",
@@ -59,6 +60,20 @@ export default async function AuditPage({
     const session = await auth();
     const logId = formData.get("logId") as string;
     const result = await applyUndo(logId, session!.user.id);
+    if (!result.ok) {
+      redirect(`/admin/audit?undoError=${encodeURIComponent(result.reason)}`);
+    }
+    redirect("/admin/audit");
+  }
+
+  async function forceRevertAction(formData: FormData) {
+    "use server";
+    const session = await auth();
+    if (session?.user?.role !== "ADMIN") {
+      redirect(`/admin/audit?undoError=${encodeURIComponent("Force revert requires ADMIN role")}`);
+    }
+    const logId = formData.get("logId") as string;
+    const result = await applyUndo(logId, session!.user.id, { force: true });
     if (!result.ok) {
       redirect(`/admin/audit?undoError=${encodeURIComponent(result.reason)}`);
     }
@@ -264,9 +279,13 @@ export default async function AuditPage({
                           Undo ({minsLeft}m)
                         </Button>
                       </form>
-                    ) : log.action !== "undo" && !isUndoable({ ...log, timestamp: new Date(Date.now() - 1) }) ? null : (
-                      <span className="text-xs text-gray-300">—</span>
-                    )}
+                    ) : isForceRevertEligible(log) ? (
+                      session?.user?.role === "ADMIN" ? (
+                        <ForceRevertButton logId={log.id} action={forceRevertAction} />
+                      ) : (
+                        <span className="text-xs text-gray-300">expired</span>
+                      )
+                    ) : null}
                   </td>
                 </tr>
               );

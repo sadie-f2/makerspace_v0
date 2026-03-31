@@ -27,8 +27,14 @@ const staffLinks = [
   { href: "/admin/settings",         label: "Settings" },
 ];
 
+// Additional links for ADMIN only
+const adminLinks = [
+  { href: "/admin/restore", label: "Restore" },
+];
+
 function navLinksForRole(role: MemberRole) {
-  if (role === "STAFF" || role === "ADMIN") return [...volunteerLinks, ...staffLinks];
+  if (role === "ADMIN") return [...volunteerLinks, ...staffLinks, ...adminLinks];
+  if (role === "STAFF") return [...volunteerLinks, ...staffLinks];
   return volunteerLinks;
 }
 

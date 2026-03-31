@@ -105,8 +105,8 @@
 - [x] Undo system — `lib/undo.ts`; 1-hour window; per-entity applicators for Member/Rental/Certification/MemberPermission/Resource/WaitlistEntry; writes `action="undo"` audit entry with `undoOfId` reference
 - [x] Audit log enhancements — entity history filter (entityId param), flagged-only filter, flag/unflag entries (`flagNote` field), undo buttons with countdown, undo chain links
 - [x] AuditLog schema — `undoOfId` (self-ref FK), `flagNote` (post-hoc annotation) added
-- [ ] Manual rollback UI for actions outside 1-hour window (currently requires psql)
-- [ ] Restore UI for soft-deleted records (browse + undelete)
+- [x] Manual rollback UI for actions outside 1-hour window — "Force revert" button (ADMIN only, confirm dialog) in audit log
+- [x] Restore UI for soft-deleted records — `/admin/restore` page (ADMIN only, audit-logged)
 - [x] IP address population in audit entries — `getClientIp()` in `lib/audit.ts`, reads `x-forwarded-for` / `x-real-ip`, degrades to null outside request context
 
 ## Accessibility (quick wins)
