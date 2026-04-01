@@ -56,7 +56,7 @@
 - [x] Public map page — `/map` route, no auth required, "Member login →" link
 - [x] Day pass page — request + history (Stripe TBD)
 - [x] Admin/staff portal link in admin header
-- [ ] Booking/reservations — deferred to next session
+- [x] Booking/reservations — portal book page + admin bookings page
 
 ## Abstraction Layers
 
@@ -111,14 +111,14 @@
 
 ## Accessibility (quick wins)
 
-- [ ] `aria-label` on icon-only buttons — zoom ±/reset in FloorPlanViewer, ← Prev / Next → in booking views
-- [ ] `aria-expanded` + `aria-controls` on toggle buttons — floor plan expand/collapse in StorageFloorPlan / StudioFloorPlan
-- [ ] `role="tablist"` / `role="tab"` + `aria-selected` on floor plan selector buttons (building/floor tabs)
-- [ ] `role="alert"` on inline error messages; `aria-describedby` linking error text to the relevant input
-- [ ] `aria-live="polite"` on dynamic status text — booking pending-start instructions, unit-count feedback
-- [ ] `role="alert"` + `aria-live="assertive"` on the system-frozen banner in admin layout
-- [ ] `aria-label` on `<nav>` landmarks in admin and portal layouts
-- [ ] `aria-current="page"` on active nav links in admin and portal layouts
+- [x] `aria-label` on icon-only buttons — zoom ±/reset in FloorPlanViewer, ← Prev / Next → in booking views
+- [x] `aria-expanded` + `aria-controls` on toggle buttons — floor plan expand/collapse in StorageFloorPlan / StudioFloorPlan
+- [x] `role="tablist"` / `role="tab"` + `aria-selected` on floor plan selector buttons (building/floor tabs)
+- [x] `role="alert"` on inline error messages; `aria-describedby` linking error text to the relevant input
+- [x] `aria-live="polite"` on dynamic status text — booking pending-start instructions, unit-count feedback
+- [x] `role="alert"` + `aria-live="assertive"` on the system-frozen banner in admin layout
+- [x] `aria-label` on `<nav>` landmarks in admin and portal layouts
+- [x] `aria-current="page"` on active nav links in admin and portal layouts
 
 ## Tests
 
@@ -139,6 +139,14 @@
 - [ ] Integration — registration validation (pw mismatch, short, taken)
 - [ ] Integration — proxy route protection
 
+## Security
+
+- [ ] Explicit cookie policy in auth.ts (`sameSite: "lax"`, `secure: true` in prod, `httpOnly: true`) — currently correct by NextAuth default, but undeclared
+- [ ] Login rate limiting — nothing currently stops brute-force on `/login` or `/register`
+- [ ] Review open ports / firewall rules on production server
+- [ ] Confirm postgres is localhost-only (not internet-exposed)
+- [ ] Verify no raw SQL queries that bypass Prisma ORM (spot-check for `$queryRaw` / `$executeRaw`)
+
 ## DevOps
 
 - [x] Dockerfile (multi-stage, standalone output)
@@ -148,6 +156,7 @@
 - [x] deploy.sh
 - [x] .env.example
 - [x] Simplified deploy.md (local postgres, no B2/DO Spaces)
+- [ ] Slim Docker image: identify minimum node_modules subset needed at runtime (currently copying full node_modules to work around prisma migrate deploy dependencies)
 - [ ] Set SMTP env vars on production server
 - [ ] UptimeRobot monitor on /api/health
 - [ ] GitHub deploy key on server
