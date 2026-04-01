@@ -34,7 +34,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs && \
+RUN apk add --no-cache python3 && \
+    addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
 # Copy only what's needed to run
@@ -44,7 +45,8 @@ COPY --from=builder /app/.next/static     ./.next/static
 COPY --from=builder /app/prisma           ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder /app/node_modules     ./node_modules
-COPY --from=builder /app/src/generated   ./src/generated
+COPY --from=builder /app/src/generated    ./src/generated
+COPY --from=builder /app/tools/dxf_to_svg.py ./tools/dxf_to_svg.py
 
 RUN chown -R nextjs:nodejs /app
 USER nextjs
