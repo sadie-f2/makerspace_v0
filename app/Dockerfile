@@ -22,8 +22,10 @@ RUN pnpm prisma generate
 # Build args needed at build time for Next.js
 ARG AUTH_SECRET
 ARG AUTH_URL
+ARG COMMIT_SHA=dev
 ENV AUTH_SECRET=$AUTH_SECRET
 ENV AUTH_URL=$AUTH_URL
+ENV NEXT_PUBLIC_COMMIT_SHA=$COMMIT_SHA
 ENV NODE_ENV=production
 
 RUN pnpm build

@@ -7,6 +7,8 @@ echo "==> Pulling latest code"
 git pull
 
 echo "==> Building and restarting app"
-docker compose up -d --build
+COMMIT_SHA=$(git rev-parse --short HEAD)
+docker compose build --build-arg COMMIT_SHA="$COMMIT_SHA"
+docker compose up -d
 
 echo "==> Deploy complete: $(date)"
