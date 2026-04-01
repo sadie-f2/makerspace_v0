@@ -9,6 +9,9 @@
 import http from "k6/http";
 
 const BASE = __ENV.BASE_URL || "http://localhost:3000";
+const COOKIE_NAME = BASE.startsWith("https://")
+  ? "__Secure-authjs.session-token"
+  : "authjs.session-token";
 
 /**
  * Login with email + password.
@@ -41,7 +44,10 @@ export function login(email, password) {
     }
   );
 
-  const cookie = (loginRes.cookies["authjs.session-token"] || [])[0];
+  // HTTPS uses __Secure- prefix; HTTP (dev) does not
+  const cookie =
+    (loginRes.cookies["__Secure-authjs.session-token"] || [])[0] ||
+    (loginRes.cookies["authjs.session-token"] || [])[0];
   if (!cookie) {
     throw new Error(`Login failed for ${email} — status ${loginRes.status}`);
   }
@@ -56,7 +62,7 @@ export function withSession(cookieValue, extra = {}) {
     ...extra,
     headers: {
       ...(extra.headers || {}),
-      Cookie: `authjs.session-token=${cookieValue}`,
+      Cookie: `${COOKIE_NAME}=${cookieValue}`,
     },
   };
 }
