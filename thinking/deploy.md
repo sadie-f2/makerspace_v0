@@ -118,7 +118,7 @@ gunzip -c /srv/backup/db/makerspace_20260401.sql.gz | \
 ## SSL / TLS
 
 ```bash
-certbot --nginx -d makerspace.artisansasylum.com
+certbot --nginx -d devops.artisans-collab.org
 ```
 
 certbot installs a systemd timer for auto-renewal.

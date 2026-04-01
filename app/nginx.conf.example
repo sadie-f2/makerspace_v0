@@ -1,6 +1,6 @@
 server {
     listen 80;
-    server_name makerspace.artisansasylum.com;
+    server_name devops.artisans-collab.org;
     # certbot will add the SSL redirect and port 443 block here
 }
 
@@ -8,10 +8,10 @@ server {
 #
 # server {
 #     listen 443 ssl;
-#     server_name makerspace.artisansasylum.com;
+#     server_name devops.artisans-collab.org;
 #
-#     ssl_certificate /etc/letsencrypt/live/makerspace.artisansasylum.com/fullchain.pem;
-#     ssl_certificate_key /etc/letsencrypt/live/makerspace.artisansasylum.com/privkey.pem;
+#     ssl_certificate /etc/letsencrypt/live/devops.artisans-collab.org/fullchain.pem;
+#     ssl_certificate_key /etc/letsencrypt/live/devops.artisans-collab.org/privkey.pem;
 #
 #     location / {
 #         proxy_pass http://localhost:3000;
