@@ -1,10 +1,14 @@
+# Copy to /etc/nginx/sites-available/makerspace
+# Symlink: ln -s /etc/nginx/sites-available/makerspace /etc/nginx/sites-enabled/makerspace
+# Then: certbot --nginx -d devops.artisans-collab.org
+# certbot will rewrite this file in place, adding the SSL redirect and port 443 block.
+
 server {
     listen 80;
     server_name devops.artisans-collab.org;
-    # certbot will add the SSL redirect and port 443 block here
 }
 
-# After certbot runs, it will add something like:
+# After certbot runs, it will look something like:
 #
 # server {
 #     listen 443 ssl;
