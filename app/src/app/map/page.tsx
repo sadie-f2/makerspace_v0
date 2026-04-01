@@ -2,6 +2,7 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import StudioFloorPlan from "@/components/StudioFloorPlan";
 
+export const dynamic = "force-dynamic";
 export const metadata = { title: "Floor Map — Artisans Asylum" };
 
 export default async function PublicMapPage() {
