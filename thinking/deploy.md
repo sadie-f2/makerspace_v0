@@ -55,8 +55,9 @@ App container → db container (Docker internal network, port 5432)
 ## First deploy
 
 ```bash
-# Install prerequisites
-apt install docker.io docker-compose-plugin nginx certbot python3-certbot-nginx python3
+# Install prerequisites (provision.sh does this)
+apt install docker.io docker-compose-plugin nginx certbot python3-certbot-nginx nodejs npm
+sudo npm install -g pnpm
 
 # Clone and configure
 git clone <repo> /srv/makerspace
@@ -64,10 +65,49 @@ cd /srv/makerspace/app
 cp .env.example .env
 # Edit .env: set POSTGRES_PASSWORD, AUTH_SECRET (openssl rand -base64 32), AUTH_URL
 
+# Generate pnpm lockfile (required for Docker build)
+# pnpm-lock.yaml must exist — copy from dev or run:
+pnpm install
+pnpm approve-builds   # approve: prisma, @prisma/engines, sharp, esbuild
+# If pnpm-lock.yaml differs from dev, copy from dev instead to keep consistent
+
+# Optional: add swap if server RAM < 4GB (prevents OOM during next build)
+fallocate -l 4G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
 docker compose up -d --build
 ```
 
 Migrations run automatically at container startup (`prisma migrate deploy`).
+
+### nginx setup
+
+After `docker compose up`:
+
+```bash
+cp nginx.conf.example /etc/nginx/sites-available/makerspace
+ln -s /etc/nginx/sites-available/makerspace /etc/nginx/sites-enabled/makerspace
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
+certbot --nginx -d devops.artisans-collab.org
+# certbot rewrites the config file in place — add the location / proxy block manually
+# if certbot doesn't include it (it won't on a minimal config):
+```
+
+Add inside the `server { listen 443 ... }` block:
+```nginx
+location / {
+    proxy_pass http://localhost:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+}
+```
 
 ## Subsequent deploys
 
