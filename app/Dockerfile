@@ -34,7 +34,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apk add --no-cache python3 && \
+RUN apk add --no-cache python3 py3-pip && \
+    pip3 install --break-system-packages ezdxf && \
     addgroup --system --gid 1001 nodejs && \
     adduser  --system --uid 1001 nextjs
 
