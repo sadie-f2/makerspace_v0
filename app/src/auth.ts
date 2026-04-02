@@ -50,9 +50,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const member = await prisma.member.findUnique({
           where:  { email, deletedAt: null },
-          select: { id: true, name: true, email: true, role: true, tierId: true },
+          select: { id: true, name: true, email: true, role: true, tierId: true, emailConfirmCode: true },
         });
         if (!member) return null;
+        // Registered but not yet email-confirmed
+        if (member.emailConfirmCode !== null) return null;
 
         return {
           id:     member.id,

@@ -75,6 +75,8 @@ model Member {
   tierId            String?
   image             String?
   role                  MemberRole  @default(MEMBER)
+  emailConfirmCode      String?
+  emailConfirmExpiresAt DateTime?
   requiresPasswordReset Boolean     @default(false)
   accessSuspended       Boolean     @default(false)
   accessSuspendedAt DateTime?

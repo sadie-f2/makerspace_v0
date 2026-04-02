@@ -1,10 +1,11 @@
 export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
-import { signIn } from "@/auth";
 import { identity } from "@/lib/identity";
 import { payment } from "@/lib/payment";
+import { notify } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -42,9 +43,15 @@ export default function RegisterPage({
     await identity.provisionUser({ memberId: member.id, name, email, initialPassword: password });
 
     const stripeCustomerId = await payment.createCustomer({ memberId: member.id, name, email });
-    await prisma.member.update({ where: { id: member.id }, data: { stripeCustomerId } });
+    const code = randomInt(0x10000).toString(16).toUpperCase().padStart(4, "0");
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    await prisma.member.update({
+      where: { id: member.id },
+      data: { stripeCustomerId, emailConfirmCode: code, emailConfirmExpiresAt: expiresAt },
+    });
 
-    await signIn("credentials", { email, password, redirectTo: "/portal" });
+    await notify("email.confirm", { name, email }, { code });
+    redirect(`/confirm-email?email=${encodeURIComponent(email)}`);
   }
 
   const errorMessages: Record<string, string> = {

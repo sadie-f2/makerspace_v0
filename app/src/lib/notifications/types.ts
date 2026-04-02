@@ -8,6 +8,7 @@ export interface Recipient {
 // ── Message types & payloads ─────────────────────────────────────────────────
 
 export type NotificationType =
+  | "email.confirm"
   | "welcome"
   | "rental.approved"
   | "rental.rejected"
@@ -21,6 +22,10 @@ export type NotificationType =
   | "access.suspended"
   | "access.restored"
   | "membership.expiring";
+
+export interface EmailConfirmPayload {
+  code: string;
+}
 
 export interface WelcomePayload {
   loginUrl: string;
@@ -92,6 +97,7 @@ export interface MembershipExpiringPayload {
 
 // Map from type → payload shape
 export interface NotificationPayloadMap {
+  "email.confirm":        EmailConfirmPayload;
   "welcome":              WelcomePayload;
   "rental.approved":      RentalApprovedPayload;
   "rental.rejected":      RentalRejectedPayload;

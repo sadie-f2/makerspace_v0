@@ -47,6 +47,18 @@ function render<T extends NotificationType>(
   const p = payload as NotificationPayloadMap[NotificationType];
 
   switch (type) {
+    case "email.confirm": {
+      const { code } = p as NotificationPayloadMap["email.confirm"];
+      return {
+        subject: "Confirm your email — Artisans Asylum",
+        html: wrap(`
+          <p>Hi ${to.name},</p>
+          <p>Enter this code to confirm your email address and activate your account:</p>
+          <p style="font-size:2em;letter-spacing:0.2em;font-weight:bold;text-align:center">${code}</p>
+          <p style="color:#888;font-size:12px">This code expires in 24 hours.</p>
+        `),
+      };
+    }
     case "welcome": {
       const { loginUrl } = p as NotificationPayloadMap["welcome"];
       return {
@@ -202,6 +214,7 @@ function render<T extends NotificationType>(
 // ── SMTP implementation ───────────────────────────────────────────────────────
 
 const SUPPORTED: ReadonlySet<NotificationType> = new Set([
+  "email.confirm",
   "welcome",
   "rental.approved",
   "rental.rejected",

@@ -42,6 +42,7 @@ describe("smtpNotifications — stub mode (no SMTP_HOST)", () => {
   });
 
   const ALL_PAYLOADS: Record<NotificationType, unknown> = {
+    "email.confirm":       { code: "A3F2" },
     "welcome":             { loginUrl: "http://localhost:3000" },
     "rental.approved":     { resourceName: "Studio 1", startDate: new Date(), monthlyRate: 300 },
     "rental.rejected":     { resourceName: "Studio 1" },

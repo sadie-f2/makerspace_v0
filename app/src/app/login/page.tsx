@@ -16,9 +16,9 @@ import {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string; confirmed?: string; email?: string }>;
 }) {
-  const { error, callbackUrl: callbackParam } = await searchParams;
+  const { error, callbackUrl: callbackParam, confirmed, email: emailParam } = await searchParams;
   const callbackUrl = callbackParam ?? "/portal";
 
   async function handleLogin(formData: FormData) {
@@ -54,6 +54,7 @@ export default async function LoginPage({
                 type="email"
                 autoComplete="email"
                 required
+                defaultValue={emailParam ?? ""}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? "login-error" : undefined}
               />
@@ -67,6 +68,11 @@ export default async function LoginPage({
                 required
               />
             </div>
+            {confirmed && (
+              <p className="text-sm text-green-600">
+                Email confirmed! Sign in to continue.
+              </p>
+            )}
             {error && (
               <p id="login-error" role="alert" className="text-sm text-red-600">
                 Invalid email or password.
