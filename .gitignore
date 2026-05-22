@@ -1,4 +1,5 @@
 # App
+app/.codegraph/
 app/.env
 app/.env.local
 app/.env*.local

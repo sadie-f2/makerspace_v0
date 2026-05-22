@@ -1,6 +1,6 @@
 # Data Abstraction Layer Requirements v0.3
 
-**Supersedes:** `abstraction-layers.md`
+**Supersedes:** `abstraction-layers.md`, `abstraction-layers-v0.3.md`
 
 **Project:** Makerspace Management Platform
 **Context:** Next.js / TypeScript / PostgreSQL / Prisma
@@ -447,7 +447,7 @@ Application does not replace Eventbrite billing.
 | Member Identity / Auth | Local credentials (NextAuth) | **Built** | v1.0 |
 | Physical Access Control | Brivo | Not started | v1.0 |
 | Space & Equipment | Prisma / PostgreSQL (Resource tree) | **Built** | v1.0 |
-| Notification / Messaging | SMTP email (Nodemailer) | **Partial** (welcome email) | v1.0 |
+| Notification / Messaging | SMTP email (Nodemailer) | **Partial** (welcome email, email confirmation) | v1.0 |
 | Reporting / Data Export | Built-in SQL + CSV | Not started | v1.0 |
 | External Calendar Sync | ICS feed | Not started | v1.0 |
 | Class / Event Management | Eventbrite | Not started | v2.0 |
