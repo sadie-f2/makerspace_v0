@@ -12,20 +12,25 @@ export default async function StoragePage() {
   const storageTypeConfigs = storageParent
     ? await prisma.spaceTypeConfig.findMany({
         where: { OR: [{ id: storageParent.id }, { parentId: storageParent.id }] },
-        select: { slug: true, label: true, defaultMonthlyRate: true, sortOrder: true },
+        select: { slug: true, label: true, defaultMonthlyRate: true, color: true, sortOrder: true },
         orderBy: { sortOrder: "asc" },
       })
     : [];
   const storageSlugs = storageTypeConfigs.map(t => t.slug);
 
   // Type label + default rate lookup (serialize Decimal → string for client)
-  const typeLabels: Record<string, { label: string; defaultMonthlyRate: string | null }> =
+  const typeLabels: Record<string, { label: string; defaultMonthlyRate: string | null; color: string | null }> =
     Object.fromEntries(
       storageTypeConfigs.map(t => [
         t.slug,
-        { label: t.label, defaultMonthlyRate: t.defaultMonthlyRate?.toString() ?? null },
+        { label: t.label, defaultMonthlyRate: t.defaultMonthlyRate?.toString() ?? null, color: t.color },
       ])
     );
+
+  // Legend for floor plan viewer — one entry per storage type with its configured color
+  const storageLegend = storageTypeConfigs
+    .filter(t => t.slug !== "storage_unit" && t.color)
+    .map(t => ({ color: t.color!, label: t.label }));
 
   if (storageSlugs.length === 0) {
     return (
@@ -111,7 +116,7 @@ export default async function StoragePage() {
         </div>
       </div>
 
-      <StorageFloorPlan floorPlans={floorPlans} />
+      <StorageFloorPlan floorPlans={floorPlans} legend={storageLegend} />
 
       {resources.length > 0 ? (
         <div className="space-y-6 mb-8">
@@ -121,9 +126,15 @@ export default async function StoragePage() {
               const typeLabel = typeLabels[slug]?.label ?? slug;
               return (
                 <div key={slug}>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                    {typeLabels[slug]?.color && (
+                      <span
+                        className="inline-block w-3 h-3 rounded-sm border border-gray-300 shrink-0"
+                        style={{ background: typeLabels[slug].color! }}
+                      />
+                    )}
                     {typeLabel}
-                    <span className="ml-2 text-xs font-normal text-gray-400">{group.length}</span>
+                    <span className="text-xs font-normal text-gray-400">{group.length}</span>
                   </h3>
                   <div className="rounded-md border divide-y text-sm">
                     {group.map(r => {

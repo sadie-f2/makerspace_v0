@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import FloorPlanViewer, { type ClickedSpace } from "@/components/FloorPlanViewer";
+import FloorPlanViewer, { type ClickedSpace, type LegendEntry } from "@/components/FloorPlanViewer";
 
 interface FloorPlanMeta {
   id: string;
@@ -11,6 +11,7 @@ interface FloorPlanMeta {
 
 interface Props {
   floorPlans: FloorPlanMeta[];
+  legend?: LegendEntry[];
 }
 
 function highlightRow(resourceId: string) {
@@ -22,7 +23,7 @@ function highlightRow(resourceId: string) {
   setTimeout(() => { row.style.backgroundColor = ""; }, 1500);
 }
 
-export default function StorageFloorPlan({ floorPlans }: Props) {
+export default function StorageFloorPlan({ floorPlans, legend }: Props) {
   const [open, setOpen]     = useState(false);
   const [activeId, setActiveId] = useState<string>(floorPlans[0]?.id ?? "");
 
@@ -61,6 +62,7 @@ export default function StorageFloorPlan({ floorPlans }: Props) {
             <FloorPlanViewer
               svgUrl={`/api/admin/floorplans/${activeId}/svg`}
               unconstrained
+              legend={legend}
               onSpaceClick={(space: ClickedSpace) => {
                 if (space.resourceId) highlightRow(space.resourceId);
               }}

@@ -102,47 +102,60 @@ async function main() {
   // Storage subtypes — one record per rentable storage class.
   // Shelf sizes each get their own entry so pricing can differ per size.
   // Additional shelf sizes can be added at runtime via /admin/settings/space-types.
+  // Storage subtypes — each type has its own DXF layer and label layer for clear separation.
+  // Single-level types (insert_coded): pallet, locker, cart — one block per physical unit.
+  // Multi-level types (insert_multilevel): shelves — layers named {prefix}1…{prefix}5 (or more).
   const storageSubtypes = [
     {
-      slug: "storage_pallet",   label: "Pallet",
-      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "pallet",
+      slug: "storage_pallet",  label: "Pallet",
+      dxfLayer: "pallet",       dxfLabelLayer: "pallet_lbl",      dxfBlockPattern: "pal",
       dxfProcessingMode: "insert_coded",
-      color: null, isBookable: false, isLeasable: true, sortOrder: 0,
+      color: "#fbbf24", isBookable: false, isLeasable: true, sortOrder: 0,
     },
     {
-      slug: "storage_locker",   label: "Locker",
-      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "lkr",
+      slug: "storage_locker",  label: "Locker",
+      dxfLayer: "locker",       dxfLabelLayer: "locker_lbl",      dxfBlockPattern: "lkr",
       dxfProcessingMode: "insert_coded",
-      color: null, isBookable: false, isLeasable: true, sortOrder: 1,
+      color: "#60a5fa", isBookable: false, isLeasable: true, sortOrder: 1,
     },
     {
-      slug: "storage_cart",     label: "Tool Cart",
-      dxfLayer: "storage",  dxfLabelLayer: "storage_label", dxfBlockPattern: "tc",
+      slug: "storage_cart",    label: "Tool Cart",
+      dxfLayer: "tcart",        dxfLabelLayer: "tcart_lbl",       dxfBlockPattern: "tc",
       dxfProcessingMode: "insert_coded",
-      color: null, isBookable: false, isLeasable: true, sortOrder: 2,
+      color: "#34d399", isBookable: false, isLeasable: true, sortOrder: 2,
     },
-    // Shelf sizes — one entry per physical size, each with its own block pattern.
-    // The dxfLayer is the prefix; the script appends the level number (shelf_l1, shelf_l2, …).
+    // Shelf sizes — dxfLayer is the layer prefix; script appends level number (shelf_std_l1 … shelf_std_l5).
+    // Up to 5 levels supported; actual level count comes from the DXF itself.
     {
-      slug: "shelf_standard",   label: "Shelf — Standard",
-      dxfLayer: "shelf_l",  dxfLabelLayer: "storage_label", dxfBlockPattern: "sb-std",
+      slug: "shelf_standard",  label: "Shelf — Standard",
+      dxfLayer: "shelf_std_l",  dxfLabelLayer: "shelf_std_lbl",  dxfBlockPattern: "sb-std",
       dxfProcessingMode: "insert_multilevel",
-      color: null, isBookable: false, isLeasable: true, sortOrder: 3,
+      color: "#fb923c", isBookable: false, isLeasable: true, sortOrder: 3,
     },
     {
-      slug: "shelf_wide",       label: "Shelf — Wide",
-      dxfLayer: "shelf_l",  dxfLabelLayer: "storage_label", dxfBlockPattern: "sb-wide",
+      slug: "shelf_wide",      label: "Shelf — Wide",
+      dxfLayer: "shelf_wide_l", dxfLabelLayer: "shelf_wide_lbl", dxfBlockPattern: "sb-wide",
       dxfProcessingMode: "insert_multilevel",
-      color: null, isBookable: false, isLeasable: true, sortOrder: 4,
+      color: "#f87171", isBookable: false, isLeasable: true, sortOrder: 4,
+    },
+    {
+      slug: "shelf_small",     label: "Shelf — Small",
+      dxfLayer: "shelf_small_l",dxfLabelLayer: "shelf_small_lbl",dxfBlockPattern: "sb-sm",
+      dxfProcessingMode: "insert_multilevel",
+      color: "#c084fc", isBookable: false, isLeasable: true, sortOrder: 5,
     },
   ];
   for (const t of storageSubtypes) {
     await prisma.spaceTypeConfig.upsert({
       where:  { slug: t.slug },
       update: {
-        dxfProcessingMode: t.dxfProcessingMode,
+        label:             t.label,
+        dxfLayer:          t.dxfLayer,
         dxfLabelLayer:     t.dxfLabelLayer,
         dxfBlockPattern:   t.dxfBlockPattern,
+        dxfProcessingMode: t.dxfProcessingMode,
+        color:             t.color,
+        sortOrder:         t.sortOrder,
       },
       create: { ...t, parentId: typeMap["storage_unit"] },
     });

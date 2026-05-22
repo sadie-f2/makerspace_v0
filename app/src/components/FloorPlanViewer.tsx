@@ -10,11 +10,17 @@ export interface ClickedSpace {
   occupantName: string | null;
 }
 
+export interface LegendEntry {
+  color: string;
+  label: string;
+}
+
 interface Props {
   svgUrl: string;
   onSpaceClick?: (space: ClickedSpace) => void;
   unconstrained?: boolean;
   hideShelves?: boolean;
+  legend?: LegendEntry[];   // overrides VIEW_LEGEND when provided
   // Selection mode
   mode?: "view" | "select";
   selectedIds?: Set<string>;
@@ -52,6 +58,7 @@ export default function FloorPlanViewer({
   onSpaceClick,
   unconstrained,
   hideShelves,
+  legend,
   mode = "view",
   selectedIds,
   currentResourceId,
@@ -92,9 +99,9 @@ export default function FloorPlanViewer({
         if (!containerRef.current) return;
         containerRef.current.innerHTML = html;
 
-        // Detect shelf levels dynamically from SVG groups
-        const matches = [...html.matchAll(/data-shelf-layer="shelf_l(\d+)"/g)];
-        const levels = [...new Set(matches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
+        // Detect shelf levels from data-level attributes (works for any shelf layer prefix)
+        const levelMatches = [...html.matchAll(/\bdata-level="(\d+)"/g)];
+        const levels = [...new Set(levelMatches.map(m => parseInt(m[1])))].sort((a, b) => a - b);
         setShelfLevels(levels);
         setHasShelves(levels.length > 0);
 
@@ -223,10 +230,10 @@ export default function FloorPlanViewer({
     const container = containerRef.current;
     if (!container || !svgLoaded) return;
 
-    // Show/hide shelf level groups
-    shelfLevels.forEach(level => {
-      const g = container.querySelector(`[data-shelf-layer="shelf_l${level}"]`) as HTMLElement | null;
-      if (g) g.style.display = level === shelfLevel ? "" : "none";
+    // Show/hide shelf level groups — handles multiple shelf types per level
+    container.querySelectorAll<HTMLElement>("[data-shelf-layer]").forEach(g => {
+      const lvl = parseInt(g.getAttribute("data-level") ?? "0");
+      g.style.display = lvl === shelfLevel ? "" : "none";
     });
 
     container.querySelectorAll<SVGElement>("[data-space-id]").forEach(el => {
@@ -310,7 +317,7 @@ export default function FloorPlanViewer({
     });
   }, [svgLoaded, mode, selectedIds, currentResourceId]);
 
-  const legend = mode === "select" ? SELECT_LEGEND : VIEW_LEGEND;
+  const activeLegend = mode === "select" ? SELECT_LEGEND : (legend ?? VIEW_LEGEND);
   const cursorStyle = isDragging ? "grabbing" : "grab";
 
   return (
@@ -377,7 +384,7 @@ export default function FloorPlanViewer({
       </div>
 
       <div className="flex gap-4 mt-2 text-xs text-gray-500 flex-wrap">
-        {legend.map(({ color, label }) => (
+        {activeLegend.map(({ color, label }) => (
           <span key={label} className="flex items-center gap-1">
             <span className="inline-block w-3 h-3 rounded-sm border border-gray-300" style={{ background: color }} />
             {label}
