@@ -147,6 +147,12 @@
 - [ ] Confirm postgres is localhost-only (not internet-exposed)
 - [ ] Verify no raw SQL queries that bypass Prisma ORM (spot-check for `$queryRaw` / `$executeRaw`)
 
+## License Compliance
+
+- [x] NOTICE file at repo root — third-party attributions (LGPL, MPL-2.0, CC-BY-4.0, unlicensed)
+- [x] tools/check-licenses.py — audits package-lock.json against allowlist; exits 1 on unexpected license; run after any pnpm install / dep bump
+- [ ] GitHub Actions CI — wire up check-licenses.py (+ lint, tsc, vitest, pytest) to run on push/PR automatically
+
 ## DevOps
 
 - [x] Dockerfile (multi-stage, standalone output)
